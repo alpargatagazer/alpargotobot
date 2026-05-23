@@ -1,0 +1,34 @@
+# Git and CI/CD
+.git
+.github
+.gitignore
+
+# Data and Secrets
+data
+secrets
+.env
+.env.*
+
+# Local build artifacts and tests
+bot
+alpargotobot
+coverage.out
+coverage.html
+image.tar.gz
+
+# IDE and OS
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+
+# Docker development / deployment helpers
+docker/docker-compose*.yml
+.dockerignore
+Makefile
+
+# Documentation
+README.md
+LEARNING.md
+LICENSE

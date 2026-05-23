@@ -1,0 +1,28 @@
+# Binaries
+*.exe
+/bot
+/alpargotobot
+
+# Data & Secrets
+data/
+secrets/
+.env
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Test results
+coverage.out
+coverage.html
+
+# Docker artifacts
+image.tar.gz
+
+# Markdown files (except README)
+*.md
+!README.md
+
+# Mise
+.mise.toml
