@@ -18,6 +18,7 @@ services:
       - NAVIDROME_API_VERSION=1.16.1
       - NAVIDROME_MUSIC_FOLDER=Music Library
       - DATA_DIR=/app/data
+      - GOCACHE=/tmp/go-cache
     volumes:
       - ..:/app
     depends_on:

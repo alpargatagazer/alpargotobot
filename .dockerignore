@@ -6,7 +6,6 @@
 # Data and Secrets
 data
 secrets
-.env
 .env.*
 
 # Local build artifacts and tests
@@ -15,6 +14,7 @@ alpargotobot
 coverage.out
 coverage.html
 image.tar.gz
+tmp
 
 # IDE and OS
 .vscode
@@ -29,6 +29,5 @@ docker/docker-compose*.yml
 Makefile
 
 # Documentation
-README.md
-LEARNING.md
+*.md
 LICENSE

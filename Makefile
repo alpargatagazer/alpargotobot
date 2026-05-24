@@ -32,7 +32,7 @@ dev-logs:
 	$(COMPOSE_DEV) logs -f telegram-bot
 
 dev-shell:
-	$(COMPOSE_DEV) exec telegram-bot sh
+	$(COMPOSE_DEV) exec -it telegram-bot sh
 
 dev-rebuild:
 	$(COMPOSE_DEV) build --no-cache

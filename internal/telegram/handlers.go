@@ -316,12 +316,8 @@ func (b *Bot) handleNowPlaying(ctx context.Context, chatID int64) {
 			}
 		}
 
-		msg += fmt.Sprintf("B&gt;%s&lt;B is listening to:\n🎵 %s - %s (%s%s, %s)\n\n", username, artist, title, album, typeTag, yearStr)
+		msg += fmt.Sprintf("👤 <b>%s</b> is listening to:\n🎵 %s - %s (%s%s, %s)\n\n", username, artist, title, album, typeTag, yearStr)
 	}
-
-	// Fix bold markdown format back to standard HTML bold tag
-	msg = strings.ReplaceAll(msg, "B&gt;", "<b>")
-	msg = strings.ReplaceAll(msg, "&lt;B", "</b>")
 
 	b.SendMessage(ctx, chatID, msg, models.ParseModeHTML, nil)
 }
