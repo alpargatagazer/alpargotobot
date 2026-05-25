@@ -1,3 +1,5 @@
+// Package telegram implements the Telegram Bot handlers, routing, formatted responses,
+// and interactive user commands using the go-telegram/bot API.
 package telegram
 
 import (
@@ -189,7 +191,7 @@ func (b *Bot) isAuthorized(ctx context.Context, chatID int64, fromUser *models.U
 func (b *Bot) sendUnauthorizedReply(ctx context.Context, chatID int64, replyToMsg *models.Message) {
 	msgText := "⛔ Sorry, I can only interact with members of authorized groups.\n\n" +
 		"*Tip*: If you are in the group, try sending any message in the group first so I can re-sync my user list, then try sending me a DM again."
-	
+
 	params := &bot.SendMessageParams{
 		ChatID:    chatID,
 		Text:      msgText,

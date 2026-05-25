@@ -18,7 +18,7 @@ RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /bot ./cmd/bot
 FROM alpine:${ALPINE_VERSION}
 
 # Install runtime dependencies: ca-certificates for Telegram API, tzdata for scheduling, sqlite-libs for db
-RUN apk add --no-cache ca-certificates tzdata sqlite-libs
+RUN apk update && apk upgrade --no-cache && apk add --no-cache ca-certificates tzdata sqlite-libs
 
 WORKDIR /app
 COPY --from=builder /bot /usr/local/bin/bot

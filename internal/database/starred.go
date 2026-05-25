@@ -40,7 +40,7 @@ func (db *DB) UpsertStarredItems(username, itemType string, items []map[string]a
 	if err != nil {
 		return fmt.Errorf("failed to prepare insert statement: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for _, item := range items {
 		itemIDVal, ok := item["id"]
@@ -80,7 +80,7 @@ func (db *DB) GetStarredItems(username, itemType string) ([]map[string]any, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to query starred items: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var items []map[string]any
 	for rows.Next() {

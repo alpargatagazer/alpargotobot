@@ -11,12 +11,12 @@ import (
 // GetAlbumTypeTag extracts and formats the album release type tag.
 func GetAlbumTypeTag(album navidrome.Album) string {
 	typeMap := map[string]string{
-		"ep":           "EP",
-		"single":       "Single",
-		"live":         "Live",
-		"compilation":  "Compilation",
-		"soundtrack":   "Soundtrack",
-		"other":        "Other",
+		"ep":          "EP",
+		"single":      "Single",
+		"live":        "Live",
+		"compilation": "Compilation",
+		"soundtrack":  "Soundtrack",
+		"other":       "Other",
 	}
 
 	detectedType := ""

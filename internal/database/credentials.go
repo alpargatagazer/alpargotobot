@@ -96,7 +96,7 @@ func (db *DB) ListUsers() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query usernames: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var usernames []string
 	for rows.Next() {

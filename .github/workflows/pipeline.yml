@@ -40,7 +40,7 @@ jobs:
         run: go test -v -race ./...
 
       - name: golangci-lint
-        uses: golangci-lint/golangci-lint-action@v9.2.1
+        uses: golangci/golangci-lint-action@v9.2.1
 
   build:
     name: Build & Save Docker Image

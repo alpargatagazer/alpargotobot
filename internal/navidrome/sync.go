@@ -507,4 +507,3 @@ func GetServerStats(client *Client, cacheFilePath, scanMetaPath string) (*Server
 		SizeBytes: totalSize,
 	}, nil
 }
-

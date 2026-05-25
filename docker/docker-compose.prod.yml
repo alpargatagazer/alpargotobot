@@ -15,7 +15,7 @@ services:
       - NAVIDROME_MUSIC_FOLDER=Music Library
       - DATA_DIR=/app/data
     volumes:
-      - ./data:/app/data
+      - ../data:/app/data
     depends_on:
       init-chown:
         condition: service_completed_successfully
@@ -33,19 +33,19 @@ services:
     command: >
       sh -c "chown -R ${UID:-1000}:${GID:-1000} /data"
     volumes:
-      - ./data:/data
+      - ../data:/data
     restart: "no"
 
 secrets:
   navidrome_url:
-    file: ./secrets/navidrome_url.txt
+    file: ../secrets/navidrome_url.txt
   navidrome_user:
-    file: ./secrets/navidrome_user.txt
+    file: ../secrets/navidrome_user.txt
   navidrome_password:
-    file: ./secrets/navidrome_password.txt
+    file: ../secrets/navidrome_password.txt
   telegram_token:
-    file: ./secrets/telegram_bot_token.txt
+    file: ../secrets/telegram_bot_token.txt
   telegram_chat_ids:
-    file: ./secrets/telegram_chat_id.txt
+    file: ../secrets/telegram_chat_id.txt
   credentials_encryption_key:
-    file: ./secrets/credentials_encryption_key.txt
+    file: ../secrets/credentials_encryption_key.txt

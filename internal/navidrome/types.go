@@ -21,17 +21,19 @@ func (d *DateField) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	// Try object format
-	var obj struct {
-		Year  int `json:"year"`
-		Month int `json:"month"`
-		Day   int `json:"day"`
-	}
-	if err := json.Unmarshal(b, &obj); err == nil && obj.Year > 0 {
-		d.Year = obj.Year
-		d.Month = obj.Month
-		d.Day = obj.Day
-		return nil
+	// Check if it's an object first
+	if len(b) > 0 && b[0] == '{' {
+		var obj struct {
+			Year  int `json:"year"`
+			Month int `json:"month"`
+			Day   int `json:"day"`
+		}
+		if err := json.Unmarshal(b, &obj); err == nil {
+			d.Year = obj.Year
+			d.Month = obj.Month
+			d.Day = obj.Day
+			return nil
+		}
 	}
 
 	// Try string format
@@ -103,30 +105,30 @@ type Genre struct {
 
 // Artist represents an artist returned by the Navidrome Subsonic API.
 type Artist struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	CoverArt  string  `json:"coverArt,omitempty"`
-	AlbumCount int    `json:"albumCount,omitempty"`
-	Album     []Album `json:"album,omitempty"`
+	ID         string  `json:"id"`
+	Name       string  `json:"name"`
+	CoverArt   string  `json:"coverArt,omitempty"`
+	AlbumCount int     `json:"albumCount,omitempty"`
+	Album      []Album `json:"album,omitempty"`
 }
 
 // Album represents an album returned by the Navidrome Subsonic API.
 type Album struct {
-	ID                  string      `json:"id"`
-	Name                string      `json:"name"`
-	Artist              string      `json:"artist"`
-	Year                int         `json:"year,omitempty"`
-	CoverArt            string      `json:"coverArt,omitempty"`
-	Created             string      `json:"created,omitempty"`
-	Genre               string      `json:"genre,omitempty"`
-	Genres              []Genre     `json:"genres,omitempty"`
-	SongCount           int         `json:"songCount,omitempty"`
-	ReleaseDate         *DateField  `json:"releaseDate,omitempty"`
-	OriginalReleaseDate *DateField  `json:"originalReleaseDate,omitempty"`
-	ReleaseTypes        []string    `json:"releaseTypes,omitempty"`
-	IsCompilation       bool        `json:"isCompilation,omitempty"`
-	TotalSizeBytes      int64       `json:"total_size_bytes,omitempty"`
-	FetchedAt           string      `json:"_fetched_at,omitempty"`
+	ID                  string     `json:"id"`
+	Name                string     `json:"name"`
+	Artist              string     `json:"artist"`
+	Year                int        `json:"year,omitempty"`
+	CoverArt            string     `json:"coverArt,omitempty"`
+	Created             string     `json:"created,omitempty"`
+	Genre               string     `json:"genre,omitempty"`
+	Genres              []Genre    `json:"genres,omitempty"`
+	SongCount           int        `json:"songCount,omitempty"`
+	ReleaseDate         *DateField `json:"releaseDate,omitempty"`
+	OriginalReleaseDate *DateField `json:"originalReleaseDate,omitempty"`
+	ReleaseTypes        []string   `json:"releaseTypes,omitempty"`
+	IsCompilation       bool       `json:"isCompilation,omitempty"`
+	TotalSizeBytes      int64      `json:"total_size_bytes,omitempty"`
+	FetchedAt           string     `json:"_fetched_at,omitempty"`
 }
 
 // Song represents a song returned by the Navidrome Subsonic API (for size calculation during enrichment).

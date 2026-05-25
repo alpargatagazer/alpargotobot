@@ -93,7 +93,7 @@ func main() {
 	// Helper for the daily check job
 	runDailyJob := func() {
 		slog.Info("Starting scheduled daily check...")
-		
+
 		// 1. New Albums (Last 24h)
 		slog.Info("Checking for new albums...")
 		newAlbums, err := navidrome.GetNewAlbums(systemNavClient, cfg.CacheFile, cfg.ScanMetaFile, 24, false)
@@ -179,9 +179,9 @@ func main() {
 	// Block until signal received
 	sig := <-sigChan
 	slog.Info("Received shutdown signal, stopping services...", "signal", sig)
-	
+
 	cancel() // Cancel context to stop bot polling
-	
+
 	// Wait a moment for goroutines to clean up
 	time.Sleep(1 * time.Second)
 	slog.Info("Shutdown complete.")

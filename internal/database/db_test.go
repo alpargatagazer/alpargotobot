@@ -14,12 +14,12 @@ import (
 func TestDBFlow(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "bot-db-test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 	db, err := NewDB(dbPath)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// 1. Check migrations worked (table exists, no crash)
 	assert.NotNil(t, db.Conn)

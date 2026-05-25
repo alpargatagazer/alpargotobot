@@ -1,3 +1,5 @@
+// Package navidrome provides a client to interface with the Navidrome Subsonic API,
+// supporting sync, search, authentication, and metadata enrichment.
 package navidrome
 
 import (
@@ -74,7 +76,7 @@ func (c *Client) request(endpoint string, params url.Values) (json.RawMessage, e
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http error: status %d", resp.StatusCode)
@@ -416,7 +418,7 @@ func (c *Client) GetCoverArtBytes(coverArtID string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to download cover art: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http error: status %d", resp.StatusCode)
@@ -451,7 +453,7 @@ func (c *Client) GetUserLastLogin(username string) (*time.Time, error) {
 	if err != nil {
 		return nil, fmt.Errorf("http native API request error: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http native API error: status %d", resp.StatusCode)

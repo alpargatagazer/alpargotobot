@@ -1,3 +1,5 @@
+// Package config handles loading configuration values from environment variables
+// and Docker secrets, initializing paths, and decoding encryption keys.
 package config
 
 import (
@@ -10,22 +12,22 @@ import (
 
 // Config holds all configuration parameters for the application.
 type Config struct {
-	NavidromeURL      string
-	NavidromeUser     string
-	NavidromePassword string
-	TelegramToken     string
-	TelegramChatIDs   []string
-	EncryptionKey     []byte
-	ScheduleTime      string
-	LogLevel          string
-	RunOnStartup      bool
-	Timezone          string
-	APIVersion        string
-	MusicFolderName   string
-	DataDir           string
-	DBPath            string
-	CacheFile         string
-	ScanMetaFile      string
+	NavidromeURL      string   // URL of the Navidrome server (e.g. http://localhost:4533)
+	NavidromeUser     string   // Default admin/user name for Navidrome API connections
+	NavidromePassword string   // Password for Navidrome API connections
+	TelegramToken     string   // Telegram Bot API Token from BotFather
+	TelegramChatIDs   []string // List of Telegram chat IDs authorized to interact with the bot
+	EncryptionKey     []byte   // 32-byte key used to encrypt/decrypt user credentials in the DB
+	ScheduleTime      string   // Time of day to run the scheduled sync (e.g. "08:00")
+	LogLevel          string   // Log level (DEBUG, INFO, WARN, ERROR)
+	RunOnStartup      bool     // If true, trigger sync/scans immediately on startup
+	Timezone          string   // Timezone database name for the scheduler (e.g. "Europe/Madrid")
+	APIVersion        string   // Subsonic API version to report (e.g. "1.16.1")
+	MusicFolderName   string   // Name of the music folder to sync
+	DataDir           string   // Path to store application data files (SQLite, cache)
+	DBPath            string   // Absolute path to the SQLite database
+	CacheFile         string   // Absolute path to the JSON cache of albums
+	ScanMetaFile      string   // Absolute path to the JSON scan status file
 }
 
 // GetSecret reads a secret from Docker secrets location (/run/secrets/<secret_name>)
@@ -48,7 +50,7 @@ func GetSecret(secretName string, defaultValue string) string {
 // LoadConfig initializes the Config struct from Docker secrets and environment variables.
 func LoadConfig() (*Config, error) {
 	dataDir := GetSecret("data_dir", "/app/data")
-	
+
 	// Create data directory if it doesn't exist
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create data directory %s: %w", dataDir, err)

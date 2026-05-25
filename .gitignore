@@ -24,6 +24,3 @@ image.tar.gz
 # Markdown files (except README)
 *.md
 !README.md
-
-# Mise
-.mise.toml

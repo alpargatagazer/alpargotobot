@@ -57,7 +57,7 @@ func TestClientGetMusicFolderID(t *testing.T) {
 func TestLibrarySync(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "sync-test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	cacheFile := filepath.Join(tempDir, "albums_cache.json")
 	scanMetaFile := filepath.Join(tempDir, "scan_status.json")

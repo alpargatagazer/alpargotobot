@@ -1,6 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
+  "minimumReleaseAge": "5 days",
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "postUpdateOptions": ["gomodTidy"],
@@ -14,11 +15,6 @@
       "description": "Group GitHub Actions version updates",
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions"
-    },
-    {
-      "description": "Require dashboard approval for major updates",
-      "matchUpdateTypes": ["major"],
-      "dependencyDashboardApproval": true
     }
   ],
   "customManagers": [

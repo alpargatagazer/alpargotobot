@@ -1,0 +1,9 @@
+# Mise configuration for local isolation
+# Usage: mise install && mise use
+
+[env]
+_.file = ".env.versions"
+
+[tools]
+go = "{{env.GO_NATIVE_VERSION}}"
+golangci-lint = "2.12.2"

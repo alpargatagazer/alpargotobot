@@ -69,6 +69,12 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 		return
 	}
 
+	// Restrict DMs: only /login is allowed in private chats
+	if message.Chat.Type == models.ChatTypePrivate && cmd != "login" {
+		b.SendMessage(ctx, message.Chat.ID, "⚠️ This command can only be used in the group chat, not in private messages.", models.ParseModeHTML, nil)
+		return
+	}
+
 	switch cmd {
 	case "start", "help":
 		b.handleHelp(ctx, message.Chat.ID)
@@ -101,7 +107,8 @@ func (b *Bot) handleInteractiveLogin(ctx context.Context, message *models.Messag
 	// Delete user's message as fast as possible to prevent clear-text exposure
 	b.deleteMessage(ctx, chatID, message.ID)
 
-	if state.state == 1 {
+	switch state.state {
+	case 1:
 		username := strings.TrimSpace(message.Text)
 		if username == "" {
 			b.SendMessage(ctx, chatID, "❌ Username cannot be blank. Please try again:", models.ParseModeHTML, nil)
@@ -113,7 +120,7 @@ func (b *Bot) handleInteractiveLogin(ctx context.Context, message *models.Messag
 		b.loginStatesMu.Unlock()
 
 		b.SendMessage(ctx, chatID, "🔑 Now enter your *password*:", models.ParseModeMarkdown, nil)
-	} else if state.state == 2 {
+	case 2:
 		password := strings.TrimSpace(message.Text)
 		b.loginStatesMu.Lock()
 		delete(b.loginStates, userID)
@@ -128,6 +135,7 @@ func (b *Bot) handleInteractiveLogin(ctx context.Context, message *models.Messag
 	}
 }
 
+// handleHelp sends a list of available Telegram bot commands to the chat.
 func (b *Bot) handleHelp(ctx context.Context, chatID int64) {
 	helpText := "👋 <b>Hello! I am the Navidrome Bot.</b>\n\n" +
 		"Available commands:\n" +
@@ -151,6 +159,7 @@ func (b *Bot) handleHelp(ctx context.Context, chatID int64) {
 	_, _ = b.api.SendMessage(ctx, params)
 }
 
+// handleStats retrieves server stats (size, artists, albums, songs) and sends them to the chat.
 func (b *Bot) handleStats(ctx context.Context, chatID int64) {
 	b.SendMessage(ctx, chatID, "🔄 Fetching server statistics...", models.ParseModeHTML, nil)
 
@@ -170,6 +179,7 @@ func (b *Bot) handleStats(ctx context.Context, chatID int64) {
 	b.SendMessage(ctx, chatID, statsText, models.ParseModeHTML, nil)
 }
 
+// handleRandom fetches a random album from Navidrome and prints its details to the chat.
 func (b *Bot) handleRandom(ctx context.Context, chatID int64) {
 	b.SendMessage(ctx, chatID, "🎲 Finding a random album...", models.ParseModeHTML, nil)
 
@@ -210,9 +220,9 @@ func (b *Bot) handleRandom(ctx context.Context, chatID int64) {
 		coverBytes, err := b.navClient.GetCoverArtBytes(coverID)
 		if err == nil {
 			photoParams := &bot.SendPhotoParams{
-				ChatID: chatID,
-				Photo:  &models.InputFileUpload{Filename: "cover.jpg", Data: strings.NewReader(string(coverBytes))},
-				Caption: caption,
+				ChatID:    chatID,
+				Photo:     &models.InputFileUpload{Filename: "cover.jpg", Data: strings.NewReader(string(coverBytes))},
+				Caption:   caption,
 				ParseMode: models.ParseModeHTML,
 			}
 			if _, err = b.api.SendPhoto(ctx, photoParams); err == nil {
@@ -257,18 +267,18 @@ func (b *Bot) performSearch(ctx context.Context, chatID int64, query string) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("🔎 <b>Results for '%s':</b>\n\n", query))
+	fmt.Fprintf(&sb, "🔎 <b>Results for '%s':</b>\n\n", query)
 	for _, album := range albums {
 		typeTag := GetAlbumTypeTag(album)
 		dateDisplay := ExtractBestDate(album)
 		genreStr := album.Genre
 
-		sb.WriteString(fmt.Sprintf("• %s - <b>%s</b>%s", album.Artist, album.Name, typeTag))
+		fmt.Fprintf(&sb, "• %s - <b>%s</b>%s", album.Artist, album.Name, typeTag)
 		if dateDisplay != "" {
-			sb.WriteString(fmt.Sprintf(" 📅 %s", dateDisplay))
+			fmt.Fprintf(&sb, " 📅 %s", dateDisplay)
 		}
 		if genreStr != "" {
-			sb.WriteString(fmt.Sprintf(" 🏷 %s", genreStr))
+			fmt.Fprintf(&sb, " 🏷 %s", genreStr)
 		}
 		sb.WriteString("\n")
 	}

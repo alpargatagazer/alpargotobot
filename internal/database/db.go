@@ -1,3 +1,5 @@
+// Package database manages SQLite database storage for bot state,
+// encrypted credentials, and cached starred items.
 package database
 
 import (
@@ -34,17 +36,17 @@ func NewDB(dbPath string) (*DB, error) {
 
 	// Enable WAL (Write-Ahead Logging) and Foreign Keys
 	if _, err := conn.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 	if _, err := conn.Exec("PRAGMA foreign_keys=ON"); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
 	db := &DB{Conn: conn}
 	if err := db.initSchema(); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 

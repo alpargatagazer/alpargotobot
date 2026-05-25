@@ -33,6 +33,7 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, call *models.CallbackQuer
 	}
 }
 
+// handleGenreCallback processes the selection of a specific genre from the inline keyboard.
 func (b *Bot) handleGenreCallback(ctx context.Context, call *models.CallbackQuery) {
 	genre := strings.TrimPrefix(call.Data, "genre:")
 	b.answerCallback(ctx, call.ID, fmt.Sprintf("Searching for %s albums...", genre))
@@ -72,6 +73,7 @@ func (b *Bot) handleGenreCallback(ctx context.Context, call *models.CallbackQuer
 	}
 }
 
+// handleYearCallback processes the selection of a specific year or decade from the inline keyboard.
 func (b *Bot) handleYearCallback(ctx context.Context, call *models.CallbackQuery) {
 	arg := strings.TrimPrefix(call.Data, "year:")
 	b.answerCallback(ctx, call.ID, fmt.Sprintf("Selecting %s...", arg))
@@ -80,6 +82,7 @@ func (b *Bot) handleYearCallback(ctx context.Context, call *models.CallbackQuery
 	b.processYearRequest(ctx, call.Message.Message.Chat.ID, arg)
 }
 
+// handleRecTypeCallback processes the recommendation type selection callback.
 func (b *Bot) handleRecTypeCallback(ctx context.Context, call *models.CallbackQuery) {
 	itemType := strings.TrimPrefix(call.Data, "rec_type:")
 	b.answerCallback(ctx, call.ID, "Validating active users...")
@@ -181,7 +184,8 @@ func (b *Bot) formatAndSendRecommendations(ctx context.Context, chatID int64, so
 
 	header := fmt.Sprintf("🎯 <b>%s Recommendations</b>\n📌 Based on favorites by <b>%s</b>", cases.Title(language.English).String(label), sourceUser)
 
-	if itemType == "song" {
+	switch itemType {
+	case "song":
 		var sb strings.Builder
 		sb.WriteString(header)
 		sb.WriteString("\n\n")
@@ -192,19 +196,19 @@ func (b *Bot) formatAndSendRecommendations(ctx context.Context, chatID int64, so
 			album := b.getMapString(item, "album", "")
 			genre := b.getMapString(item, "genre", "")
 
-			sb.WriteString(fmt.Sprintf("%s <b>%s</b> — %s", emoji, title, artist))
+			fmt.Fprintf(&sb, "%s <b>%s</b> — %s", emoji, title, artist)
 			if album != "" {
-				sb.WriteString(fmt.Sprintf(" (%s)", album))
+				fmt.Fprintf(&sb, " (%s)", album)
 			}
 			if genre != "" {
-				sb.WriteString(fmt.Sprintf(" 🏷 %s", genre))
+				fmt.Fprintf(&sb, " 🏷 %s", genre)
 			}
 			sb.WriteString("\n")
 		}
 
 		b.SendMessage(ctx, chatID, sb.String(), models.ParseModeHTML, nil)
 
-	} else if itemType == "album" {
+	case "album":
 		var lines []string
 		lines = append(lines, header, "")
 
@@ -243,7 +247,7 @@ func (b *Bot) formatAndSendRecommendations(ctx context.Context, chatID int64, so
 		fullCaption := strings.Join(lines, "\n")
 		b.sendMediaOrText(ctx, chatID, media, fullCaption)
 
-	} else if itemType == "artist" {
+	case "artist":
 		var lines []string
 		lines = append(lines, header, "")
 
