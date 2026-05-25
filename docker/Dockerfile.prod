@@ -1,0 +1,31 @@
+ARG GO_VERSION=1.26.3-alpine3.23
+ARG ALPINE_VERSION=3.23
+
+# Stage 1: Build the Go binary
+FROM golang:${GO_VERSION} AS builder
+
+# Install build-base/gcc for CGO compilation
+RUN apk add --no-cache gcc musl-dev
+
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /bot ./cmd/bot
+
+# Stage 2: Minimal runtime
+FROM alpine:${ALPINE_VERSION}
+
+# Install runtime dependencies: ca-certificates for Telegram API, tzdata for scheduling, sqlite-libs for db
+RUN apk update && apk upgrade --no-cache && apk add --no-cache ca-certificates tzdata sqlite-libs
+
+WORKDIR /app
+COPY --from=builder /bot /usr/local/bin/bot
+
+# Health check to verify bot process is running (using standard ps check or similar if no port is exposed)
+# Since the bot doesn't expose any ports, we check if the bot process is active
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD pgrep bot > /dev/null || exit 1
+
+ENTRYPOINT ["/usr/local/bin/bot"]

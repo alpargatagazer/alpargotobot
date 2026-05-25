@@ -1,0 +1,56 @@
+name: alpargotobot-dev
+
+services:
+  telegram-bot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+      args:
+        GO_VERSION: ${GO_IMAGE_VERSION}
+    container_name: alpargotobot_dev
+    user: "${UID:-1000}:${GID:-1000}"
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Madrid
+      - SCHEDULE_TIME=08:00
+      - LOGGING=DEBUG
+      - RUN_ON_STARTUP=false
+      - NAVIDROME_API_VERSION=1.16.1
+      - NAVIDROME_MUSIC_FOLDER=Music Library
+      - DATA_DIR=/app/data
+      - GOCACHE=/tmp/go-cache
+    volumes:
+      - ..:/app
+    depends_on:
+      init-chown:
+        condition: service_completed_successfully
+    secrets:
+      - navidrome_url
+      - navidrome_user
+      - navidrome_password
+      - telegram_token
+      - telegram_chat_ids
+      - credentials_encryption_key
+
+  init-chown:
+    image: alpine:latest
+    container_name: alpargotobot_dev_init
+    command: >
+      sh -c "chown -R ${UID:-1000}:${GID:-1000} /data"
+    volumes:
+      - ../data:/data
+    restart: "no"
+
+secrets:
+  navidrome_url:
+    file: ../secrets/navidrome_url.txt
+  navidrome_user:
+    file: ../secrets/navidrome_user.txt
+  navidrome_password:
+    file: ../secrets/navidrome_password.txt
+  telegram_token:
+    file: ../secrets/telegram_bot_token.txt
+  telegram_chat_ids:
+    file: ../secrets/telegram_chat_id.txt
+  credentials_encryption_key:
+    file: ../secrets/credentials_encryption_key.txt
