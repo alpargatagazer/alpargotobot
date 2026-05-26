@@ -188,6 +188,9 @@ func (b *Bot) isAuthorized(ctx context.Context, chatID int64, fromUser *models.U
 	return false
 }
 
+// sendUnauthorizedReply sends a standard rejection message when a user interacts
+// with the bot but is not authorized (i.e. not in the group, or we don't have their record).
+// It includes a helpful tip explaining how they can get themselves synced into the bot's db.
 func (b *Bot) sendUnauthorizedReply(ctx context.Context, chatID int64, replyToMsg *models.Message) {
 	msgText := "⛔ Sorry, I can only interact with members of authorized groups.\n\n" +
 		"*Tip*: If you are in the group, try sending any message in the group first so I can re-sync my user list, then try sending me a DM again."

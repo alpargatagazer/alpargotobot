@@ -234,6 +234,8 @@ func (b *Bot) handleRandom(ctx context.Context, chatID int64) {
 	b.SendMessage(ctx, chatID, caption, models.ParseModeHTML, nil)
 }
 
+// handleSearch prompts the user if no query is provided, or initiates a search.
+// If the user simply types "/search", it forces a reply to prompt for the search term.
 func (b *Bot) handleSearch(ctx context.Context, chatID int64, args string) {
 	query := strings.TrimSpace(args)
 	if query == "" {
@@ -252,6 +254,8 @@ func (b *Bot) handleSearch(ctx context.Context, chatID int64, args string) {
 	b.performSearch(ctx, chatID, query)
 }
 
+// performSearch fetches search results from Navidrome and formats them into a message.
+// It handles cases where no albums are found or API errors occur.
 func (b *Bot) performSearch(ctx context.Context, chatID int64, query string) {
 	b.SendMessage(ctx, chatID, fmt.Sprintf("🔎 Searching for '%s'...", query), models.ParseModeHTML, nil)
 
@@ -286,6 +290,7 @@ func (b *Bot) performSearch(ctx context.Context, chatID int64, query string) {
 	b.SendMessage(ctx, chatID, sb.String(), models.ParseModeHTML, nil)
 }
 
+// handleNowPlaying retrieves active user sessions from Navidrome and displays currently playing tracks.
 func (b *Bot) handleNowPlaying(ctx context.Context, chatID int64) {
 	entries, err := b.navClient.GetNowPlaying()
 	if err != nil {
@@ -332,6 +337,8 @@ func (b *Bot) handleNowPlaying(ctx context.Context, chatID int64) {
 	b.SendMessage(ctx, chatID, msg, models.ParseModeHTML, nil)
 }
 
+// handleGenres fetches all available genres from the Navidrome server and displays them
+// as an interactive inline keyboard. Telegram limits the number of buttons, so it caps at 40 buttons.
 func (b *Bot) handleGenres(ctx context.Context, chatID int64) {
 	genres, err := b.navClient.GetGenres()
 	if err != nil {
@@ -381,6 +388,8 @@ func (b *Bot) handleGenres(ctx context.Context, chatID int64) {
 	_, _ = b.api.SendMessage(ctx, params)
 }
 
+// handleYear processes the "/year" command. If no year is provided, it returns an inline
+// keyboard offering a selection of decades (50s, 60s, etc.) or the current year.
 func (b *Bot) handleYear(ctx context.Context, chatID int64, args string) {
 	arg := strings.TrimSpace(args)
 
@@ -419,6 +428,8 @@ func (b *Bot) handleYear(ctx context.Context, chatID int64, args string) {
 	b.processYearRequest(ctx, chatID, arg)
 }
 
+// processYearRequest parses the user's year input (e.g., "1994", "90s", "Current").
+// It resolves the input into a startYear and endYear range, then searches Navidrome for albums in that range.
 func (b *Bot) processYearRequest(ctx context.Context, chatID int64, arg string) {
 	var startYear, endYear int
 	displayStr := arg
@@ -474,6 +485,8 @@ func (b *Bot) processYearRequest(ctx context.Context, chatID int64, arg string) 
 	b.SendMessage(ctx, chatID, msg, models.ParseModeHTML, nil)
 }
 
+// handleRecent queries Navidrome for albums added in the last 30 days and displays
+// the top 10 most recent ones.
 func (b *Bot) handleRecent(ctx context.Context, chatID int64) {
 	b.SendMessage(ctx, chatID, "🆕 Fetching recently added albums...", models.ParseModeHTML, nil)
 
@@ -500,6 +513,8 @@ func (b *Bot) handleRecent(ctx context.Context, chatID int64) {
 	b.SendMessage(ctx, chatID, msg, models.ParseModeHTML, nil)
 }
 
+// handleRecommend presents the user with an inline keyboard to choose the type
+// of recommendations they'd like (songs, albums, or artists).
 func (b *Bot) handleRecommend(ctx context.Context, chatID int64) {
 	params := &bot.SendMessageParams{
 		ChatID:    chatID,
@@ -518,6 +533,9 @@ func (b *Bot) handleRecommend(ctx context.Context, chatID int64) {
 	_, _ = b.api.SendMessage(ctx, params)
 }
 
+// handleLogin manages user authentication.
+// It verifies that it is invoked in a private chat for security, and handles both inline
+// credentials (`/login user pass`) and interactive step-by-step logins.
 func (b *Bot) handleLogin(ctx context.Context, message *models.Message, args string) {
 	chatID := message.Chat.ID
 	userID := message.From.ID
@@ -548,6 +566,8 @@ func (b *Bot) handleLogin(ctx context.Context, message *models.Message, args str
 	b.SendMessage(ctx, chatID, "👤 Please enter your Navidrome *username*:", models.ParseModeMarkdown, nil)
 }
 
+// processLogin validates provided credentials with the Navidrome server using a Ping request.
+// Upon success, it encrypts and stores the credentials locally for future background syncing.
 func (b *Bot) processLogin(ctx context.Context, chatID int64, fromUser *models.User, username, password string) {
 	params := &bot.SendMessageParams{
 		ChatID: chatID,
@@ -629,6 +649,8 @@ func (b *Bot) processLogin(ctx context.Context, chatID int64, fromUser *models.U
 
 // Helpers
 
+// deleteMessage is a utility to immediately delete a user's message, primarily
+// used to hide sensitive data like plaintext passwords or clutter.
 func (b *Bot) deleteMessage(ctx context.Context, chatID int64, messageID int) {
 	params := &bot.DeleteMessageParams{
 		ChatID:    chatID,
@@ -637,6 +659,8 @@ func (b *Bot) deleteMessage(ctx context.Context, chatID int64, messageID int) {
 	_, _ = b.api.DeleteMessage(ctx, params)
 }
 
+// getMapString safely extracts a string value from a generic map parsed from JSON.
+// Returns the fallback string if the key does not exist or the value is not a string.
 func (b *Bot) getMapString(m map[string]any, key string, fallback string) string {
 	if val, ok := m[key]; ok {
 		if s, ok := val.(string); ok {

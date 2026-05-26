@@ -30,6 +30,14 @@ type Config struct {
 	ScanMetaFile      string   // Absolute path to the JSON scan status file
 }
 
+// GetEnv reads a standard environment variable directly, with a fallback.
+func GetEnv(envName string, defaultValue string) string {
+	if val, ok := os.LookupEnv(envName); ok {
+		return strings.TrimSpace(val)
+	}
+	return defaultValue
+}
+
 // GetSecret reads a secret from Docker secrets location (/run/secrets/<secret_name>)
 // or falls back to an uppercase environment variable.
 func GetSecret(secretName string, defaultValue string) string {
@@ -39,17 +47,12 @@ func GetSecret(secretName string, defaultValue string) string {
 		return strings.TrimSpace(string(data))
 	}
 
-	envName := strings.ToUpper(secretName)
-	if val, ok := os.LookupEnv(envName); ok {
-		return strings.TrimSpace(val)
-	}
-
-	return defaultValue
+	return GetEnv(strings.ToUpper(secretName), defaultValue)
 }
 
 // LoadConfig initializes the Config struct from Docker secrets and environment variables.
 func LoadConfig() (*Config, error) {
-	dataDir := GetSecret("data_dir", "/app/data")
+	dataDir := GetEnv("DATA_DIR", "/app/data")
 
 	// Create data directory if it doesn't exist
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
@@ -69,10 +72,9 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("credentials_encryption_key must be exactly 32 bytes (64 hex characters), got %d bytes", len(keyBytes))
 	}
 
-	// Parse Telegram Chat IDs
+	// Parse Telegram Chat IDs from secrets or environment
 	chatIDSecret := GetSecret("telegram_chat_id", "")
 	if chatIDSecret == "" {
-		// Try plural variant
 		chatIDSecret = GetSecret("telegram_chat_ids", "")
 	}
 	var chatIDs []string
@@ -86,7 +88,7 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	runOnStartupStr := strings.ToLower(GetSecret("run_on_startup", "false"))
+	runOnStartupStr := strings.ToLower(GetEnv("RUN_ON_STARTUP", "false"))
 	runOnStartup := runOnStartupStr == "true" || runOnStartupStr == "1"
 
 	return &Config{
@@ -96,12 +98,12 @@ func LoadConfig() (*Config, error) {
 		TelegramToken:     GetSecret("telegram_token", ""),
 		TelegramChatIDs:   chatIDs,
 		EncryptionKey:     keyBytes,
-		ScheduleTime:      GetSecret("schedule_time", "08:00"),
-		LogLevel:          GetSecret("logging", "INFO"),
+		ScheduleTime:      GetEnv("SCHEDULE_TIME", "08:00"),
+		LogLevel:          GetEnv("LOGGING", "INFO"),
 		RunOnStartup:      runOnStartup,
-		Timezone:          GetSecret("timezone", "UTC"),
-		APIVersion:        GetSecret("navidrome_api_version", "1.16.1"),
-		MusicFolderName:   GetSecret("navidrome_music_folder", "Music Library"),
+		Timezone:          GetEnv("TZ", GetEnv("TIMEZONE", "UTC")),
+		APIVersion:        GetEnv("NAVIDROME_API_VERSION", "1.16.1"),
+		MusicFolderName:   GetEnv("NAVIDROME_MUSIC_FOLDER", "Music Library"),
 		DataDir:           dataDir,
 		DBPath:            filepath.Join(dataDir, "credentials.db"),
 		CacheFile:         filepath.Join(dataDir, "albums_cache.json"),
