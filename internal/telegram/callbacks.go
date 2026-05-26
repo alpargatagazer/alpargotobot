@@ -126,6 +126,8 @@ func (b *Bot) handleRecTypeCallback(ctx context.Context, call *models.CallbackQu
 	b.editMessage(ctx, call.Message.Message.Chat.ID, call.Message.Message.ID, menuText, markup)
 }
 
+// handleRecUserCallback processes recommendation callbacks when a user requests
+// recommendations based on their own listening history (e.g., songs, albums, artists).
 func (b *Bot) handleRecUserCallback(ctx context.Context, call *models.CallbackQuery) {
 	parts := strings.SplitN(strings.TrimPrefix(call.Data, "rec_user:"), ":", 2)
 	if len(parts) < 2 {
@@ -175,6 +177,8 @@ func (b *Bot) handleRecUserCallback(ctx context.Context, call *models.CallbackQu
 	b.formatAndSendRecommendations(ctx, call.Message.Message.Chat.ID, sourceUser, itemType, items)
 }
 
+// formatAndSendRecommendations structures the recommendation results into a readable message
+// and sends it back to the user.
 func (b *Bot) formatAndSendRecommendations(ctx context.Context, chatID int64, sourceUser string, itemType string, items []map[string]any) {
 	typeLabels := map[string]string{"song": "songs", "album": "albums", "artist": "artists"}
 	typeEmojis := map[string]string{"song": "🎵", "album": "💿", "artist": "👤"}
@@ -284,6 +288,8 @@ func (b *Bot) formatAndSendRecommendations(ctx context.Context, chatID int64, so
 	}
 }
 
+// sendMediaOrText checks if the media (e.g., Album Art) is accessible. If so, it sends the media
+// with the provided text as a caption. If the media URL is invalid or empty, it sends only the text message.
 func (b *Bot) sendMediaOrText(ctx context.Context, chatID int64, media []models.InputMedia, caption string) {
 	if len(media) > 0 {
 		// Truncate caption if it exceeds Telegram's 1024 limit for media captions
@@ -317,6 +323,8 @@ func (b *Bot) sendMediaOrText(ctx context.Context, chatID int64, media []models.
 	}
 }
 
+// answerCallback notifies Telegram that the callback has been received and processed.
+// This dismisses the loading state on the user's inline keyboard button.
 func (b *Bot) answerCallback(ctx context.Context, callbackQueryID string, text string) {
 	params := &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: callbackQueryID,
@@ -325,6 +333,7 @@ func (b *Bot) answerCallback(ctx context.Context, callbackQueryID string, text s
 	_, _ = b.api.AnswerCallbackQuery(ctx, params)
 }
 
+// editMessage updates the text or keyboard of an existing message.
 func (b *Bot) editMessage(ctx context.Context, chatID int64, messageID int, text string, replyMarkup *models.InlineKeyboardMarkup) {
 	params := &bot.EditMessageTextParams{
 		ChatID:    chatID,

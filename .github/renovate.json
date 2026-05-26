@@ -7,6 +7,12 @@
   "postUpdateOptions": ["gomodTidy"],
   "packageRules": [
     {
+      "description": "Restrict golang docker image to alpine variants",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["golang"],
+      "allowedVersions": "/alpine/"
+    },
+    {
       "description": "Group Docker image version updates",
       "matchManagers": ["dockerfile", "custom.regex"],
       "groupName": "Docker base images"
