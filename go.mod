@@ -7,7 +7,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 	golang.org/x/text v0.37.0
 )
 
