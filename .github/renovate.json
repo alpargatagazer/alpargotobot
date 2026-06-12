@@ -28,7 +28,7 @@
       "customType": "regex",
       "fileMatch": ["^\\.env\\.versions$"],
       "matchStrings": [
-        "datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\s\\w+=(?<currentValue>.*)\\s"
+        "#\\\\s*renovate:\\\\s*datasource=(?<datasource>[^\\\\s]+)\\\\s+depName=(?<depName>[^\\\\s]+)(?:\\\\s+versioning=(?<versioning>[^\\\\s]+))?\\\\s+[A-Z_]+=(?<currentValue>[^\\\\s]+)"
       ],
       "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
     }

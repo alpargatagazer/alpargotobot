@@ -172,6 +172,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3.0.0
