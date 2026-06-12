@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.26.3-alpine3.23
+ARG GO_VERSION=1.26.4-alpine3.23
 FROM golang:${GO_VERSION}
 
 # Install build dependencies for CGO and air
