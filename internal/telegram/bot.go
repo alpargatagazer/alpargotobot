@@ -17,6 +17,10 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
+type contextKey string
+
+const threadIDKey = contextKey("threadID")
+
 type authCacheEntry struct {
 	isAuth    bool
 	lastCheck time.Time
@@ -83,6 +87,12 @@ func (b *Bot) SendMessage(ctx context.Context, chatID any, text string, parseMod
 			Text:      chunk,
 			ParseMode: parseMode,
 		}
+
+		// Automatically route to the correct subchannel if we are in one
+		if threadID, ok := ctx.Value(threadIDKey).(int); ok && threadID != 0 {
+			params.MessageThreadID = threadID
+		}
+
 		// Only attach replyMarkup to the last chunk
 		if i == len(chunks)-1 && replyMarkup != nil {
 			params.ReplyMarkup = replyMarkup
@@ -93,8 +103,16 @@ func (b *Bot) SendMessage(ctx context.Context, chatID any, text string, parseMod
 	}
 }
 
-// SendNotification sends a message to all configured chats.
-func (b *Bot) SendNotification(ctx context.Context, text string) {
+// injectThreadID sets the MessageThreadID on a SendMessageParams if the context
+// has a non-zero threadID value. Call this before any direct b.api.SendMessage.
+func (b *Bot) injectThreadID(ctx context.Context, params *bot.SendMessageParams) {
+	if threadID, ok := ctx.Value(threadIDKey).(int); ok && threadID != 0 {
+		params.MessageThreadID = threadID
+	}
+}
+
+// SendNotification sends a message to all configured chats, optionally within a specific topic.
+func (b *Bot) SendNotification(ctx context.Context, text string, topicID int) {
 	if len(b.cfg.TelegramChatIDs) == 0 {
 		slog.Error("No authorized chat IDs configured for notifications.")
 		return
@@ -103,7 +121,18 @@ func (b *Bot) SendNotification(ctx context.Context, text string) {
 	for _, idStr := range b.cfg.TelegramChatIDs {
 		var id int64
 		if _, err := fmt.Sscanf(idStr, "%d", &id); err == nil {
-			b.SendMessage(ctx, id, text, models.ParseModeHTML, nil)
+			chunks := SplitMessage(text, 4096)
+			for _, chunk := range chunks {
+				params := &bot.SendMessageParams{
+					ChatID:          id,
+					MessageThreadID: topicID,
+					Text:            chunk,
+					ParseMode:       models.ParseModeHTML,
+				}
+				if _, err := b.api.SendMessage(ctx, params); err != nil {
+					slog.Error("Failed to send notification", "chatID", id, "topicID", topicID, "error", err)
+				}
+			}
 		} else {
 			slog.Error("Failed to parse chat ID for notification", "idStr", idStr, "error", err)
 		}
@@ -112,8 +141,12 @@ func (b *Bot) SendNotification(ctx context.Context, text string) {
 
 func (b *Bot) handleUpdate(ctx context.Context, api *bot.Bot, update *models.Update) {
 	if update.Message != nil {
+		ctx = context.WithValue(ctx, threadIDKey, update.Message.MessageThreadID)
 		b.handleMessage(ctx, update.Message)
 	} else if update.CallbackQuery != nil {
+		if update.CallbackQuery.Message.Message != nil {
+			ctx = context.WithValue(ctx, threadIDKey, update.CallbackQuery.Message.Message.MessageThreadID)
+		}
 		b.handleCallbackQuery(ctx, update.CallbackQuery)
 	}
 }

@@ -103,7 +103,7 @@ func main() {
 			slog.Info("Found new albums", "count", len(newAlbums))
 			msg := telegram.FormatAlbumList(newAlbums, "🆕 Freshly Added Albums (Last 24h)")
 			if msg != "" {
-				bot.SendNotification(context.Background(), msg)
+				bot.SendNotification(context.Background(), msg, cfg.TopicRecommendations)
 			}
 		} else {
 			slog.Info("No new albums found.")
@@ -119,7 +119,7 @@ func main() {
 			slog.Info("Found anniversaries", "count", len(anniversaries))
 			msg := telegram.FormatAlbumList(anniversaries, fmt.Sprintf("🎂 On this day (%s) in music history", now.Format("January 02")))
 			if msg != "" {
-				bot.SendNotification(context.Background(), msg)
+				bot.SendNotification(context.Background(), msg, cfg.TopicRecommendations)
 			}
 		} else {
 			slog.Info("No anniversaries found.")

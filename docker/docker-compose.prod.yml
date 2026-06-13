@@ -6,6 +6,8 @@ services:
     container_name: alpargotobot_prod
     user: "${UID:-1000}:${GID:-1000}"
     restart: always
+    env_file:
+      - ../.env
     environment:
       - TZ=Europe/Madrid
       - SCHEDULE_TIME=08:00

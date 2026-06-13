@@ -28,12 +28,30 @@ type Config struct {
 	DBPath            string   // Absolute path to the SQLite database
 	CacheFile         string   // Absolute path to the JSON cache of albums
 	ScanMetaFile      string   // Absolute path to the JSON scan status file
+
+	// Telegram Topics (Subchannels)
+	TopicGeneral         int // General
+	TopicIssues          int // Issues and improvements
+	TopicRecommendations int // Recommendations and recents
 }
 
 // GetEnv reads a standard environment variable directly, with a fallback.
 func GetEnv(envName string, defaultValue string) string {
 	if val, ok := os.LookupEnv(envName); ok {
 		return strings.TrimSpace(val)
+	}
+	return defaultValue
+}
+
+// getIntEnv reads an environment variable and parses it as an integer.
+func getIntEnv(envName string, defaultValue int) int {
+	valStr := GetEnv(envName, "")
+	if valStr == "" {
+		return defaultValue
+	}
+	var val int
+	if _, err := fmt.Sscanf(valStr, "%d", &val); err == nil {
+		return val
 	}
 	return defaultValue
 }
@@ -92,21 +110,24 @@ func LoadConfig() (*Config, error) {
 	runOnStartup := runOnStartupStr == "true" || runOnStartupStr == "1"
 
 	return &Config{
-		NavidromeURL:      GetSecret("navidrome_url", ""),
-		NavidromeUser:     GetSecret("navidrome_user", ""),
-		NavidromePassword: GetSecret("navidrome_password", ""),
-		TelegramToken:     GetSecret("telegram_token", ""),
-		TelegramChatIDs:   chatIDs,
-		EncryptionKey:     keyBytes,
-		ScheduleTime:      GetEnv("SCHEDULE_TIME", "08:00"),
-		LogLevel:          GetEnv("LOGGING", "INFO"),
-		RunOnStartup:      runOnStartup,
-		Timezone:          GetEnv("TZ", GetEnv("TIMEZONE", "UTC")),
-		APIVersion:        GetEnv("NAVIDROME_API_VERSION", "1.16.1"),
-		MusicFolderName:   GetEnv("NAVIDROME_MUSIC_FOLDER", "Music Library"),
-		DataDir:           dataDir,
-		DBPath:            filepath.Join(dataDir, "credentials.db"),
-		CacheFile:         filepath.Join(dataDir, "albums_cache.json"),
-		ScanMetaFile:      filepath.Join(dataDir, "scan_status.json"),
+		NavidromeURL:         GetSecret("navidrome_url", ""),
+		NavidromeUser:        GetSecret("navidrome_user", ""),
+		NavidromePassword:    GetSecret("navidrome_password", ""),
+		TelegramToken:        GetSecret("telegram_token", ""),
+		TelegramChatIDs:      chatIDs,
+		EncryptionKey:        keyBytes,
+		ScheduleTime:         GetEnv("SCHEDULE_TIME", "08:00"),
+		LogLevel:             GetEnv("LOGGING", "INFO"),
+		RunOnStartup:         runOnStartup,
+		Timezone:             GetEnv("TZ", GetEnv("TIMEZONE", "UTC")),
+		APIVersion:           GetEnv("NAVIDROME_API_VERSION", "1.16.1"),
+		MusicFolderName:      GetEnv("NAVIDROME_MUSIC_FOLDER", "Music Library"),
+		DataDir:              dataDir,
+		DBPath:               filepath.Join(dataDir, "credentials.db"),
+		CacheFile:            filepath.Join(dataDir, "albums_cache.json"),
+		ScanMetaFile:         filepath.Join(dataDir, "scan_status.json"),
+		TopicGeneral:         getIntEnv("TOPIC_GENERAL", 0),
+		TopicIssues:          getIntEnv("TOPIC_ISSUES", 0),
+		TopicRecommendations: getIntEnv("TOPIC_RECOMMENDATIONS", 0),
 	}, nil
 }
