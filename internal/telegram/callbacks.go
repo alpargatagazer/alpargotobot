@@ -30,6 +30,8 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, call *models.CallbackQuer
 		b.handleRecTypeCallback(ctx, call)
 	} else if strings.HasPrefix(data, "rec_user:") {
 		b.handleRecUserCallback(ctx, call)
+	} else if strings.HasPrefix(data, "ticket_type:") {
+		b.handleTicketTypeCallback(ctx, call)
 	}
 }
 

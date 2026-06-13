@@ -29,6 +29,7 @@ local-setup:
 	@command -v mise >/dev/null 2>&1 || { echo "Error: 'mise' is not installed."; exit 1; }
 	@echo "Installing tools via Mise..."
 	mise install
+	mise x -- go mod tidy
 	@echo "Local environment is ready!"
 
 # --- Development ---
