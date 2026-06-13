@@ -75,6 +75,15 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 		return
 	}
 
+	// Topic Routing Rules
+	if message.Chat.Type != models.ChatTypePrivate {
+		if !b.isCommandAllowedInTopic(cmd, message.MessageThreadID) {
+			// Notify the user instead of silently ignoring
+			b.SendMessage(ctx, message.Chat.ID, "⚠️ This command is not allowed in this subchannel.", models.ParseModeHTML, nil)
+			return
+		}
+	}
+
 	switch cmd {
 	case "start", "help":
 		b.handleHelp(ctx, message.Chat.ID)
@@ -97,6 +106,27 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 	case "login":
 		b.handleLogin(ctx, message, args)
 	}
+}
+
+// isCommandAllowedInTopic enforces the routing rules for subchannels.
+// If topics are not configured, it defaults to allowing all commands.
+func (b *Bot) isCommandAllowedInTopic(cmd string, threadID int) bool {
+	cfg := b.cfg
+	hasTopics := cfg.TopicGeneral != 0 || cfg.TopicIssues != 0 || cfg.TopicRecommendations != 0
+
+	if !hasTopics {
+		return true // Allow all if topics aren't configured
+	}
+
+	switch cmd {
+	case "help", "start", "stats", "search", "login":
+		return true // all channels
+	case "year", "genres", "nowplaying":
+		return threadID != cfg.TopicIssues
+	case "recent", "random", "recommend":
+		return threadID == cfg.TopicRecommendations
+	}
+	return true
 }
 
 // handleInteractiveLogin runs the state machine for password privacy.
@@ -156,6 +186,7 @@ func (b *Bot) handleHelp(ctx context.Context, chatID int64) {
 		Text:      helpText,
 		ParseMode: models.ParseModeHTML,
 	}
+	b.injectThreadID(ctx, params)
 	_, _ = b.api.SendMessage(ctx, params)
 }
 
@@ -247,6 +278,7 @@ func (b *Bot) handleSearch(ctx context.Context, chatID int64, args string) {
 				Selective:  true,
 			},
 		}
+		b.injectThreadID(ctx, params)
 		_, _ = b.api.SendMessage(ctx, params)
 		return
 	}
@@ -385,6 +417,7 @@ func (b *Bot) handleGenres(ctx context.Context, chatID int64) {
 			InlineKeyboard: buttons,
 		},
 	}
+	b.injectThreadID(ctx, params)
 	_, _ = b.api.SendMessage(ctx, params)
 }
 
@@ -421,6 +454,7 @@ func (b *Bot) handleYear(ctx context.Context, chatID int64, args string) {
 				InlineKeyboard: buttons,
 			},
 		}
+		b.injectThreadID(ctx, params)
 		_, _ = b.api.SendMessage(ctx, params)
 		return
 	}
@@ -530,6 +564,7 @@ func (b *Bot) handleRecommend(ctx context.Context, chatID int64) {
 			},
 		},
 	}
+	b.injectThreadID(ctx, params)
 	_, _ = b.api.SendMessage(ctx, params)
 }
 
@@ -573,6 +608,7 @@ func (b *Bot) processLogin(ctx context.Context, chatID int64, fromUser *models.U
 		ChatID: chatID,
 		Text:   "⏳ Verifying credentials with Navidrome...",
 	}
+	b.injectThreadID(ctx, params)
 	botMsg, err := b.api.SendMessage(ctx, params)
 	var editMsgID int
 	if err == nil {

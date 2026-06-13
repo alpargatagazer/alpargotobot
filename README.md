@@ -22,6 +22,19 @@ This is the Go port of the original Python bot, featuring significantly lower me
 
 ## Setup and Configuration
 
+### Telegram Topics (Subchannels)
+If your Telegram group uses Topics (subchannels), you can restrict commands and scheduled messages to specific topics.
+
+To enable this, create a `.env` file in the root directory (you can copy `.env.example`).
+You will need to manually find the Thread ID for each topic (it's the middle number in a message link, e.g., `https://t.me/c/123456789/45/67` -> Thread ID is `45`) and add it to your `.env` file:
+- `TOPIC_GENERAL` (normally "1")
+- `TOPIC_ISSUES`
+- `TOPIC_RECOMMENDATIONS`
+
+If you don't use topics, simply leave these at `0` or empty, and the bot will work in all channels.
+
+### Secrets Configuration
+
 Create a `secrets/` directory containing the following files (no newlines):
 
 - `navidrome_url.txt` (e.g., `https://navidrome.example.com`)
