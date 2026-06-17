@@ -53,6 +53,18 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 
 	// 2. Command routing
 	if !isCommand {
+		// Intercept text replies from users currently in the ticket creation flow
+		b.ticketStatesMu.Lock()
+		tState, inTicket := b.ticketStates[message.From.ID]
+		b.ticketStatesMu.Unlock()
+		if inTicket {
+			if !b.isAuthorized(ctx, message.Chat.ID, message.From, message) {
+				return
+			}
+			b.handleTicketInput(ctx, message, tState)
+			return
+		}
+
 		// If it's a reply to "What do you want to search for?"
 		if message.ReplyToMessage != nil && strings.Contains(strings.ToLower(message.ReplyToMessage.Text), "what do you want to search for?") {
 			if !b.isAuthorized(ctx, message.Chat.ID, message.From, message) {
@@ -105,6 +117,12 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 		b.handleRecommend(ctx, message.Chat.ID)
 	case "login":
 		b.handleLogin(ctx, message, args)
+	case "ticket":
+		b.handleTicket(ctx, message)
+	case "tickets":
+		b.handleListTickets(ctx, message.Chat.ID)
+	case "done":
+		b.handleCloseTicket(ctx, message.Chat.ID, args)
 	}
 }
 
@@ -125,6 +143,8 @@ func (b *Bot) isCommandAllowedInTopic(cmd string, threadID int) bool {
 		return threadID != cfg.TopicIssues
 	case "recent", "random", "recommend":
 		return threadID == cfg.TopicRecommendations
+	case "ticket", "tickets", "done":
+		return threadID == cfg.TopicIssues
 	}
 	return true
 }
@@ -178,6 +198,10 @@ func (b *Bot) handleHelp(ctx context.Context, chatID int64) {
 		"• /recommend - Get music recommendations from other users\n" +
 		"• /stats - Show server statistics\n" +
 		"• /help - Show this message\n\n" +
+		"🎫 <b>Issues &amp; Improvements (issues channel only)</b>:\n" +
+		"• /ticket - Submit a new issue or improvement\n" +
+		"• /tickets - List all open tickets\n" +
+		"• /done &lt;id&gt; - Mark a ticket as resolved\n\n" +
 		"🔒 <b>Private Commands (DM only)</b>:\n" +
 		"• /login &lt;user&gt; &lt;pass&gt; - Store credentials to share your favorites\n"
 
@@ -275,7 +299,6 @@ func (b *Bot) handleSearch(ctx context.Context, chatID int64, args string) {
 			Text:   "🔎 What do you want to search for?",
 			ReplyMarkup: &models.ForceReply{
 				ForceReply: true,
-				Selective:  true,
 			},
 		}
 		b.injectThreadID(ctx, params)

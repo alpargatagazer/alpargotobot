@@ -79,6 +79,15 @@ func (db *DB) initSchema() error {
 		synced_at   TEXT NOT NULL,
 		PRIMARY KEY (username, item_type, item_id),
 		FOREIGN KEY (username) REFERENCES credentials(username) ON DELETE CASCADE
+	);
+
+	CREATE TABLE IF NOT EXISTS tickets (
+		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		type        TEXT NOT NULL CHECK(type IN ('issue', 'improvement')),
+		title       TEXT NOT NULL,
+		description TEXT NOT NULL,
+		author_name TEXT NOT NULL,
+		created_at  TEXT NOT NULL
 	);`
 
 	if _, err := db.Conn.Exec(schema); err != nil {

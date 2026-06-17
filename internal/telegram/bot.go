@@ -31,6 +31,21 @@ type loginState struct {
 	username string
 }
 
+// ticketStep represents the current step in the interactive ticket creation flow.
+type ticketStep int
+
+const (
+	ticketStepTitle       ticketStep = 1 // waiting for the ticket title
+	ticketStepDescription ticketStep = 2 // waiting for the description
+)
+
+// ticketState tracks the in-progress state of a user creating a new ticket.
+type ticketState struct {
+	step       ticketStep
+	ticketType database.TicketType
+	title      string
+}
+
 // Bot handles Telegram bot logic, command routing, and authorization middleware.
 type Bot struct {
 	api            *bot.Bot
@@ -44,6 +59,9 @@ type Bot struct {
 
 	loginStates   map[int64]loginState
 	loginStatesMu sync.Mutex
+
+	ticketStates   map[int64]ticketState
+	ticketStatesMu sync.Mutex
 }
 
 // NewBot initializes and returns a new Telegram Bot.
@@ -55,6 +73,7 @@ func NewBot(cfg *config.Config, db *database.DB, navClient *navidrome.Client, ac
 		activityEngine: activityEngine,
 		authCache:      make(map[int64]authCacheEntry),
 		loginStates:    make(map[int64]loginState),
+		ticketStates:   make(map[int64]ticketState),
 	}
 
 	opts := []bot.Option{

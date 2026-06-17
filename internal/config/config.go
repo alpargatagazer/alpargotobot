@@ -35,8 +35,8 @@ type Config struct {
 	TopicRecommendations int // Recommendations and recents
 }
 
-// GetEnv reads a standard environment variable directly, with a fallback.
-func GetEnv(envName string, defaultValue string) string {
+// getEnv reads a standard environment variable directly, with a fallback.
+func getEnv(envName string, defaultValue string) string {
 	if val, ok := os.LookupEnv(envName); ok {
 		return strings.TrimSpace(val)
 	}
@@ -45,7 +45,7 @@ func GetEnv(envName string, defaultValue string) string {
 
 // getIntEnv reads an environment variable and parses it as an integer.
 func getIntEnv(envName string, defaultValue int) int {
-	valStr := GetEnv(envName, "")
+	valStr := getEnv(envName, "")
 	if valStr == "" {
 		return defaultValue
 	}
@@ -56,21 +56,21 @@ func getIntEnv(envName string, defaultValue int) int {
 	return defaultValue
 }
 
-// GetSecret reads a secret from Docker secrets location (/run/secrets/<secret_name>)
+// getSecret reads a secret from Docker secrets location (/run/secrets/<secret_name>)
 // or falls back to an uppercase environment variable.
-func GetSecret(secretName string, defaultValue string) string {
+func getSecret(secretName string, defaultValue string) string {
 	secretPath := filepath.Join("/run/secrets", secretName)
 	data, err := os.ReadFile(secretPath)
 	if err == nil {
 		return strings.TrimSpace(string(data))
 	}
 
-	return GetEnv(strings.ToUpper(secretName), defaultValue)
+	return getEnv(strings.ToUpper(secretName), defaultValue)
 }
 
 // LoadConfig initializes the Config struct from Docker secrets and environment variables.
 func LoadConfig() (*Config, error) {
-	dataDir := GetEnv("DATA_DIR", "/app/data")
+	dataDir := getEnv("DATA_DIR", "/app/data")
 
 	// Create data directory if it doesn't exist
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
@@ -78,7 +78,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Load and decode encryption key
-	keyHex := GetSecret("credentials_encryption_key", "")
+	keyHex := getSecret("credentials_encryption_key", "")
 	if keyHex == "" {
 		return nil, fmt.Errorf("credentials_encryption_key not found in secrets or environment")
 	}
@@ -91,9 +91,9 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Parse Telegram Chat IDs from secrets or environment
-	chatIDSecret := GetSecret("telegram_chat_id", "")
+	chatIDSecret := getSecret("telegram_chat_id", "")
 	if chatIDSecret == "" {
-		chatIDSecret = GetSecret("telegram_chat_ids", "")
+		chatIDSecret = getSecret("telegram_chat_ids", "")
 	}
 	var chatIDs []string
 	if chatIDSecret != "" {
@@ -106,22 +106,22 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	runOnStartupStr := strings.ToLower(GetEnv("RUN_ON_STARTUP", "false"))
+	runOnStartupStr := strings.ToLower(getEnv("RUN_ON_STARTUP", "false"))
 	runOnStartup := runOnStartupStr == "true" || runOnStartupStr == "1"
 
 	return &Config{
-		NavidromeURL:         GetSecret("navidrome_url", ""),
-		NavidromeUser:        GetSecret("navidrome_user", ""),
-		NavidromePassword:    GetSecret("navidrome_password", ""),
-		TelegramToken:        GetSecret("telegram_token", ""),
+		NavidromeURL:         getSecret("navidrome_url", ""),
+		NavidromeUser:        getSecret("navidrome_user", ""),
+		NavidromePassword:    getSecret("navidrome_password", ""),
+		TelegramToken:        getSecret("telegram_token", ""),
 		TelegramChatIDs:      chatIDs,
 		EncryptionKey:        keyBytes,
-		ScheduleTime:         GetEnv("SCHEDULE_TIME", "08:00"),
-		LogLevel:             GetEnv("LOGGING", "INFO"),
+		ScheduleTime:         getEnv("SCHEDULE_TIME", "08:00"),
+		LogLevel:             getEnv("LOGGING", "INFO"),
 		RunOnStartup:         runOnStartup,
-		Timezone:             GetEnv("TZ", GetEnv("TIMEZONE", "UTC")),
-		APIVersion:           GetEnv("NAVIDROME_API_VERSION", "1.16.1"),
-		MusicFolderName:      GetEnv("NAVIDROME_MUSIC_FOLDER", "Music Library"),
+		Timezone:             getEnv("TZ", getEnv("TIMEZONE", "UTC")),
+		APIVersion:           getEnv("NAVIDROME_API_VERSION", "1.16.1"),
+		MusicFolderName:      getEnv("NAVIDROME_MUSIC_FOLDER", "Music Library"),
 		DataDir:              dataDir,
 		DBPath:               filepath.Join(dataDir, "credentials.db"),
 		CacheFile:            filepath.Join(dataDir, "albums_cache.json"),
