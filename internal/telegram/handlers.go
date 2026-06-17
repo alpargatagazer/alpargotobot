@@ -104,7 +104,7 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 	case "random":
 		b.handleRandom(ctx, message.Chat.ID)
 	case "search":
-		b.handleSearch(ctx, message.Chat.ID, args)
+		b.handleSearch(ctx, message, args)
 	case "nowplaying":
 		b.handleNowPlaying(ctx, message.Chat.ID)
 	case "genres":
@@ -280,6 +280,7 @@ func (b *Bot) handleRandom(ctx context.Context, chatID int64) {
 				Caption:   caption,
 				ParseMode: models.ParseModeHTML,
 			}
+			b.injectThreadID(ctx, photoParams)
 			if _, err = b.api.SendPhoto(ctx, photoParams); err == nil {
 				return
 			}
@@ -291,14 +292,19 @@ func (b *Bot) handleRandom(ctx context.Context, chatID int64) {
 
 // handleSearch prompts the user if no query is provided, or initiates a search.
 // If the user simply types "/search", it forces a reply to prompt for the search term.
-func (b *Bot) handleSearch(ctx context.Context, chatID int64, args string) {
+func (b *Bot) handleSearch(ctx context.Context, message *models.Message, args string) {
 	query := strings.TrimSpace(args)
+	chatID := message.Chat.ID
 	if query == "" {
 		params := &bot.SendMessageParams{
 			ChatID: chatID,
 			Text:   "🔎 What do you want to search for?",
+			ReplyParameters: &models.ReplyParameters{
+				MessageID: message.ID,
+			},
 			ReplyMarkup: &models.ForceReply{
 				ForceReply: true,
+				Selective:  true,
 			},
 		}
 		b.injectThreadID(ctx, params)

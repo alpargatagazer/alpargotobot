@@ -317,6 +317,7 @@ func (b *Bot) sendMediaOrText(ctx context.Context, chatID int64, media []models.
 				ChatID: chatID,
 				Media:  media[k:end],
 			}
+			b.injectThreadID(ctx, params)
 			_, err := b.api.SendMediaGroup(ctx, params)
 			if err != nil {
 				slog.Error("Failed to send media group", "error", err)
