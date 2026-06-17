@@ -50,6 +50,8 @@ jobs:
       new_version: ${{ steps.versioning.outputs.new_version }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Load external environment variables
         run: cat .env.versions >> $GITHUB_ENV
