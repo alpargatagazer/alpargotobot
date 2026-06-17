@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+
 	// 1. Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {

@@ -116,26 +116,58 @@ func (b *Bot) handleListTickets(ctx context.Context, chatID int64) {
 		fmt.Fprintf(&sb, "%s <b>#%d — %s</b>\n%s\n<i>By %s on %s</i>\n\n",
 			typeEmoji, t.ID, t.Title, t.Description, t.AuthorName, t.CreatedAt.Format("Jan 02 2006"))
 	}
-	fmt.Fprintf(&sb, "Use /done &lt;id&gt; to mark a ticket as resolved.")
+	fmt.Fprintf(&sb, "Use /done to pick a ticket to close, or /done &lt;id&gt; directly.")
 
 	b.SendMessage(ctx, chatID, sb.String(), models.ParseModeHTML, nil)
 }
 
-// handleCloseTicket marks a ticket as done (deletes it from the pool).
-// Usage: /done <id>
+// handleCloseTicket marks a ticket as done.
+// With no args, it shows an inline keyboard of open tickets to pick from.
+// With an ID arg (e.g. /done 3), it closes that ticket directly.
 func (b *Bot) handleCloseTicket(ctx context.Context, chatID int64, args string) {
 	args = strings.TrimSpace(args)
+
+	// No ID given — show an inline keyboard of current open tickets
 	if args == "" {
-		b.SendMessage(ctx, chatID, "⚠️ Usage: /done &lt;ticket_id&gt;", models.ParseModeHTML, nil)
+		tickets, err := b.db.ListTickets()
+		if err != nil {
+			b.SendMessage(ctx, chatID, fmt.Sprintf("❌ Failed to fetch tickets: %v", err), models.ParseModeHTML, nil)
+			return
+		}
+		if len(tickets) == 0 {
+			b.SendMessage(ctx, chatID, "✅ No open tickets. Everything is fine!", models.ParseModeHTML, nil)
+			return
+		}
+
+		var buttons [][]models.InlineKeyboardButton
+		for _, t := range tickets {
+			emoji := "🐛"
+			if t.Type == database.TicketTypeImprovement {
+				emoji = "✨"
+			}
+			buttons = append(buttons, []models.InlineKeyboardButton{
+				{Text: fmt.Sprintf("%s #%d — %s", emoji, t.ID, t.Title), CallbackData: fmt.Sprintf("ticket_done:%d", t.ID)},
+			})
+		}
+		params := &bot.SendMessageParams{
+			ChatID:    chatID,
+			Text:      "🎫 <b>Select a ticket to close:</b>",
+			ParseMode: models.ParseModeHTML,
+			ReplyMarkup: &models.InlineKeyboardMarkup{
+				InlineKeyboard: buttons,
+			},
+		}
+		b.injectThreadID(ctx, params)
+		_, _ = b.api.SendMessage(ctx, params)
 		return
 	}
 
+	// ID given — close directly
 	var id int64
 	if _, err := fmt.Sscanf(args, "%d", &id); err != nil || id <= 0 {
 		b.SendMessage(ctx, chatID, "❌ Invalid ticket ID. Use /tickets to see the list.", models.ParseModeHTML, nil)
 		return
 	}
-
 	removed, err := b.db.CloseTicket(id)
 	if err != nil {
 		b.SendMessage(ctx, chatID, fmt.Sprintf("❌ Error: %v", err), models.ParseModeHTML, nil)
@@ -145,7 +177,6 @@ func (b *Bot) handleCloseTicket(ctx context.Context, chatID int64, args string) 
 		b.SendMessage(ctx, chatID, fmt.Sprintf("⚠️ Ticket #%d not found.", id), models.ParseModeHTML, nil)
 		return
 	}
-
 	b.SendMessage(ctx, chatID, fmt.Sprintf("✅ Ticket #%d marked as done and removed.", id), models.ParseModeHTML, nil)
 }
 
@@ -192,4 +223,33 @@ func (b *Bot) handleTicketTypeCallback(ctx context.Context, call *models.Callbac
 	}
 	b.injectThreadID(ctx, params)
 	_, _ = b.api.SendMessage(ctx, params)
+}
+
+// handleTicketDoneCallback handles the inline button press when the user picks
+// a ticket to close from the /done keyboard. It deletes the selection message,
+// closes the ticket, and sends a confirmation.
+func (b *Bot) handleTicketDoneCallback(ctx context.Context, call *models.CallbackQuery) {
+	idStr := strings.TrimPrefix(call.Data, "ticket_done:")
+	b.answerCallback(ctx, call.ID, "")
+
+	var id int64
+	if _, err := fmt.Sscanf(idStr, "%d", &id); err != nil || id <= 0 {
+		b.editMessage(ctx, call.Message.Message.Chat.ID, call.Message.Message.ID, "❌ Invalid ticket ID.", nil)
+		return
+	}
+
+	chatID := call.Message.Message.Chat.ID
+
+	removed, err := b.db.CloseTicket(id)
+	if err != nil {
+		b.editMessage(ctx, chatID, call.Message.Message.ID, fmt.Sprintf("❌ Error: %v", err), nil)
+		return
+	}
+	if !removed {
+		b.editMessage(ctx, chatID, call.Message.Message.ID, fmt.Sprintf("⚠️ Ticket #%d not found.", id), nil)
+		return
+	}
+
+	b.deleteMessage(ctx, chatID, call.Message.Message.ID)
+	b.SendMessage(ctx, call.Message.Message.Chat.ID, fmt.Sprintf("✅ Ticket #%d marked as done and removed.", id), models.ParseModeHTML, nil)
 }
