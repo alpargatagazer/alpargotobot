@@ -16,7 +16,7 @@ func TestTickets(t *testing.T) {
 	dbPath := filepath.Join(tempDir, "test.db")
 	db, err := NewDB(dbPath)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Initial list should be empty
 	tickets, err := db.ListTickets()
