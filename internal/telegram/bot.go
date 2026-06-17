@@ -122,11 +122,21 @@ func (b *Bot) SendMessage(ctx context.Context, chatID any, text string, parseMod
 	}
 }
 
-// injectThreadID sets the MessageThreadID on a SendMessageParams if the context
-// has a non-zero threadID value. Call this before any direct b.api.SendMessage.
-func (b *Bot) injectThreadID(ctx context.Context, params *bot.SendMessageParams) {
-	if threadID, ok := ctx.Value(threadIDKey).(int); ok && threadID != 0 {
-		params.MessageThreadID = threadID
+// injectThreadID sets the MessageThreadID on various Telegram Send Params if the context
+// has a non-zero threadID value. Call this before any direct b.api.Send... calls.
+func (b *Bot) injectThreadID(ctx context.Context, params any) {
+	threadID, ok := ctx.Value(threadIDKey).(int)
+	if !ok || threadID == 0 {
+		return
+	}
+
+	switch p := params.(type) {
+	case *bot.SendMessageParams:
+		p.MessageThreadID = threadID
+	case *bot.SendPhotoParams:
+		p.MessageThreadID = threadID
+	case *bot.SendMediaGroupParams:
+		p.MessageThreadID = threadID
 	}
 }
 
@@ -257,5 +267,6 @@ func (b *Bot) sendUnauthorizedReply(ctx context.Context, chatID int64, replyToMs
 			MessageID: replyToMsg.ID,
 		}
 	}
+	b.injectThreadID(ctx, params)
 	_, _ = b.api.SendMessage(ctx, params)
 }

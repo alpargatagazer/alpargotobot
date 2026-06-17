@@ -58,8 +58,12 @@ func (b *Bot) handleTicketInput(ctx context.Context, message *models.Message, st
 			ChatID:    chatID,
 			Text:      "📝 Now describe the problem or improvement in detail. Include as much context as possible:",
 			ParseMode: models.ParseModeHTML,
+			ReplyParameters: &models.ReplyParameters{
+				MessageID: message.ID,
+			},
 			ReplyMarkup: &models.ForceReply{
 				ForceReply: true,
+				Selective:  true,
 			},
 		}
 		b.injectThreadID(ctx, params)
@@ -215,10 +219,11 @@ func (b *Bot) handleTicketTypeCallback(ctx context.Context, call *models.Callbac
 
 	params := &bot.SendMessageParams{
 		ChatID:    chatID,
-		Text:      fmt.Sprintf("%s selected.\n\nPlease enter a short <b>title</b> for this ticket:", label),
+		Text:      fmt.Sprintf("<a href=\"tg://user?id=%d\">%s</a>: %s selected.\n\nPlease enter a short <b>title</b> for this ticket:", userID, call.From.FirstName, label),
 		ParseMode: models.ParseModeHTML,
 		ReplyMarkup: &models.ForceReply{
 			ForceReply: true,
+			Selective:  true,
 		},
 	}
 	b.injectThreadID(ctx, params)
