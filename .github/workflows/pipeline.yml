@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v6.4.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -40,7 +40,7 @@ jobs:
         run: go test -v -race ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9.2.1
+        uses: golangci/golangci-lint-action@v9.3.0
 
   build:
     name: Build & Save Docker Image
@@ -178,7 +178,7 @@ jobs:
           fetch-depth: 0
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3.0.0
+        uses: softprops/action-gh-release@v3.0.1
         with:
           tag_name: ${{ needs.build.outputs.new_version }}
           name: Release ${{ needs.build.outputs.new_version }}
