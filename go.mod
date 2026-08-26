@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	github.com/go-telegram/bot v1.23.0
-	github.com/mattn/go-sqlite3 v1.14.49
+	github.com/mattn/go-sqlite3 v1.14.50
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.22.0
