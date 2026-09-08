@@ -6,4 +6,4 @@ _.file = ".env.versions"
 
 [tools]
 go = "{{env.GO_NATIVE_VERSION}}"
-golangci-lint = "2.13.1"
+golangci-lint = "2.13.2"
