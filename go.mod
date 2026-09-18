@@ -3,7 +3,7 @@ module github.com/alpargatagazer/alpargotobot
 go 1.26.3
 
 require (
-	github.com/go-telegram/bot v1.25.0
+	github.com/go-telegram/bot v1.27.0
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.11.1
