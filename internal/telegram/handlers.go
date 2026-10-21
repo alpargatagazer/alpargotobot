@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"html"
 	"log/slog"
 	"regexp"
 	"sort"
@@ -18,6 +19,12 @@ import (
 // handleMessage routes incoming Telegram messages to the correct command handler or interactive state machine.
 func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 	if message == nil {
+		return
+	}
+
+	// 0. Handle new chat members joining the group
+	if len(message.NewChatMembers) > 0 {
+		b.handleNewChatMembers(ctx, message)
 		return
 	}
 
@@ -124,6 +131,49 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 	case "done":
 		b.handleCloseTicket(ctx, message.Chat.ID, args)
 	}
+}
+
+// handleNewChatMembers welcomes any new user joining the group chat,
+// mentioning them and inviting them to recommend an album already on the platform.
+func (b *Bot) handleNewChatMembers(ctx context.Context, message *models.Message) {
+	// Only welcome in authorized groups
+	if !b.isChatAuthorized(message.Chat.ID) {
+		return
+	}
+
+	// If group has a configured General topic and message came with threadID 0, route to General
+	if b.cfg.TopicGeneral != 0 {
+		if tID, ok := ctx.Value(threadIDKey).(int); !ok || tID == 0 {
+			ctx = context.WithValue(ctx, threadIDKey, b.cfg.TopicGeneral)
+		}
+	}
+
+	for _, member := range message.NewChatMembers {
+		// Ignore bot accounts
+		if member.IsBot {
+			continue
+		}
+
+		text := buildWelcomeMessage(member)
+		b.SendMessage(ctx, message.Chat.ID, text, models.ParseModeHTML, nil)
+	}
+}
+
+// buildWelcomeMessage constructs the personalized welcome greeting asking the member
+// to recommend an album from the platform as per group tradition.
+func buildWelcomeMessage(member models.User) string {
+	var mention string
+	if member.Username != "" {
+		mention = "@" + member.Username
+	} else {
+		name := strings.TrimSpace(member.FirstName + " " + member.LastName)
+		if name == "" {
+			name = "there"
+		}
+		mention = fmt.Sprintf("<a href=\"tg://user?id=%d\">%s</a>", member.ID, html.EscapeString(name))
+	}
+
+	return fmt.Sprintf("👋 Welcome %s! As is tradition here, please recommend an album that is already on the platform 💿", mention)
 }
 
 // isCommandAllowedInTopic enforces the routing rules for subchannels.

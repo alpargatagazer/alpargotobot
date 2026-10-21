@@ -180,6 +180,20 @@ func (b *Bot) handleUpdate(ctx context.Context, api *bot.Bot, update *models.Upd
 	}
 }
 
+// isChatAuthorized checks if the given chatID is included in configured TelegramChatIDs.
+func (b *Bot) isChatAuthorized(chatID int64) bool {
+	if len(b.cfg.TelegramChatIDs) == 0 {
+		return false
+	}
+	chatIDStr := fmt.Sprintf("%d", chatID)
+	for _, id := range b.cfg.TelegramChatIDs {
+		if id == chatIDStr {
+			return true
+		}
+	}
+	return false
+}
+
 // isAuthorized checks if the chat/user has permissions to use the bot.
 func (b *Bot) isAuthorized(ctx context.Context, chatID int64, fromUser *models.User, replyToMsg *models.Message) bool {
 	if len(b.cfg.TelegramChatIDs) == 0 {
@@ -187,11 +201,8 @@ func (b *Bot) isAuthorized(ctx context.Context, chatID int64, fromUser *models.U
 	}
 
 	// 1. Direct match with authorized groups
-	chatIDStr := fmt.Sprintf("%d", chatID)
-	for _, id := range b.cfg.TelegramChatIDs {
-		if id == chatIDStr {
-			return true
-		}
+	if b.isChatAuthorized(chatID) {
+		return true
 	}
 
 	// 2. For private chats, check if the user belongs to one of the authorized groups.
