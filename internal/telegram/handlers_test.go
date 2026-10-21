@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/alpargatagazer/alpargotobot/internal/config"
+	"github.com/go-telegram/bot/models"
 	"github.com/stretchr/testify/require"
 )
 
@@ -66,4 +67,62 @@ func TestIsCommandAllowedInTopic_WithTopics(t *testing.T) {
 	// Unknown commands are allowed by default
 	require.True(t, b.isCommandAllowedInTopic("unknown", 0))
 	require.True(t, b.isCommandAllowedInTopic("unknown", 10))
+}
+
+func TestBuildWelcomeMessage(t *testing.T) {
+	// 1. With username
+	userWithUsername := models.User{
+		ID:        12345,
+		FirstName: "Alice",
+		LastName:  "Wonderland",
+		Username:  "alicew",
+	}
+	msg := buildWelcomeMessage(userWithUsername)
+	require.Contains(t, msg, "@alicew")
+	require.Contains(t, msg, "recommend an album that is already on the platform")
+
+	// 2. Without username (uses HTML link mention)
+	userWithoutUsername := models.User{
+		ID:        67890,
+		FirstName: "Bob",
+		LastName:  "Dylan",
+	}
+	msg2 := buildWelcomeMessage(userWithoutUsername)
+	require.Contains(t, msg2, `<a href="tg://user?id=67890">Bob Dylan</a>`)
+	require.Contains(t, msg2, "recommend an album that is already on the platform")
+
+	// 3. Name with HTML characters needing escaping
+	userWithHTML := models.User{
+		ID:        99999,
+		FirstName: "Cool <Musician> & DJ",
+	}
+	msg3 := buildWelcomeMessage(userWithHTML)
+	require.Contains(t, msg3, `<a href="tg://user?id=99999">Cool &lt;Musician&gt; &amp; DJ</a>`)
+
+	// 4. Blank name fallback
+	userBlank := models.User{
+		ID: 11111,
+	}
+	msg4 := buildWelcomeMessage(userBlank)
+	require.Contains(t, msg4, `<a href="tg://user?id=11111">there</a>`)
+}
+
+func TestIsChatAuthorized(t *testing.T) {
+	b := &Bot{
+		cfg: &config.Config{
+			TelegramChatIDs: []string{"-100123456789", "987654321"},
+		},
+	}
+
+	require.True(t, b.isChatAuthorized(-100123456789))
+	require.True(t, b.isChatAuthorized(987654321))
+	require.False(t, b.isChatAuthorized(11111111))
+
+	// Empty config allows nothing
+	bEmpty := &Bot{
+		cfg: &config.Config{
+			TelegramChatIDs: nil,
+		},
+	}
+	require.False(t, bEmpty.isChatAuthorized(-100123456789))
 }
