@@ -484,3 +484,60 @@ func (c *Client) GetUserLastLogin(username string) (*time.Time, error) {
 
 	return nil, nil // user not found
 }
+
+// UserExists checks if a username exists on the Navidrome server.
+// Queries Subsonic getUser endpoint with fallback to the native users API.
+func (c *Client) UserExists(username string) (bool, error) {
+	trimmed := strings.TrimSpace(username)
+	if trimmed == "" {
+		return false, nil
+	}
+
+	params := url.Values{}
+	params.Set("username", trimmed)
+	raw, err := c.request("getUser", params)
+	if err != nil {
+		errStr := strings.ToLower(err.Error())
+		if strings.Contains(errStr, "code 50") || strings.Contains(errStr, "not found") {
+			return false, nil
+		}
+		// If Subsonic getUser fails for another reason, fallback to native API
+		reqURL := fmt.Sprintf("%s/api/user?_end=100&_order=ASC&_sort=userName&_start=0", c.baseURL)
+		req, reqErr := http.NewRequest("GET", reqURL, nil)
+		if reqErr != nil {
+			return false, err
+		}
+		req.SetBasicAuth(c.username, c.password)
+		resp, respErr := c.httpClient.Do(req)
+		if respErr != nil {
+			return false, err
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if resp.StatusCode == http.StatusOK {
+			bodyBytes, readErr := io.ReadAll(resp.Body)
+			if readErr == nil {
+				var users []NativeUser
+				if json.Unmarshal(bodyBytes, &users) == nil {
+					for _, u := range users {
+						if strings.EqualFold(u.UserName, trimmed) {
+							return true, nil
+						}
+					}
+					return false, nil
+				}
+			}
+		}
+		return false, err
+	}
+
+	var data struct {
+		User struct {
+			Username string `json:"username"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return false, fmt.Errorf("failed to parse getUser response: %w", err)
+	}
+
+	return strings.EqualFold(data.User.Username, trimmed), nil
+}

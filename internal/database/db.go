@@ -88,6 +88,12 @@ func (db *DB) initSchema() error {
 		description TEXT NOT NULL,
 		author_name TEXT NOT NULL,
 		created_at  TEXT NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS nowplaying_filters (
+		username    TEXT PRIMARY KEY COLLATE NOCASE,
+		telegram_id INTEGER,
+		created_at  TEXT NOT NULL
 	);`
 
 	if _, err := db.Conn.Exec(schema); err != nil {
