@@ -89,6 +89,11 @@ If all values are `0` or missing, the bot works normally in every channel.
 | `/tickets` *(issues channel)* | List all open tickets |
 | `/done [id]` *(issues channel)* | Mark a ticket as resolved (shows picker if no ID given) |
 | `/login` *(DM only)* | Store your Navidrome credentials for the bot to sync your favorites |
+| `/disable_np` *(DM only)* | Hide your playback activity from the `/nowplaying` command |
+| `/enable_np` *(DM only)* | Re-enable your playback activity in the `/nowplaying` command |
+
+> [!NOTE]
+> `/disable_np` and `/enable_np` require verifying your Navidrome password privately to confirm account ownership before altering your visibility preference. Password messages in DM are deleted immediately for security.
 
 ## Running Locally
 

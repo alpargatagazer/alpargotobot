@@ -28,15 +28,35 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 		return
 	}
 
-	// 1. Interactive login step-by-step flow (DMs only)
+	// 1. Interactive login / np filter step-by-step flow (DMs only)
 	if message.Chat.Type == models.ChatTypePrivate {
-		b.loginStatesMu.Lock()
-		state, inLogin := b.loginStates[message.From.ID]
-		b.loginStatesMu.Unlock()
+		// If user types any command, clear interactive states so they never get trapped
+		if strings.HasPrefix(strings.TrimSpace(message.Text), "/") {
+			b.loginStatesMu.Lock()
+			delete(b.loginStates, message.From.ID)
+			b.loginStatesMu.Unlock()
 
-		if inLogin {
-			b.handleInteractiveLogin(ctx, message, state)
-			return
+			b.npFilterStatesMu.Lock()
+			delete(b.npFilterStates, message.From.ID)
+			b.npFilterStatesMu.Unlock()
+		} else {
+			b.loginStatesMu.Lock()
+			state, inLogin := b.loginStates[message.From.ID]
+			b.loginStatesMu.Unlock()
+
+			if inLogin {
+				b.handleInteractiveLogin(ctx, message, state)
+				return
+			}
+
+			b.npFilterStatesMu.Lock()
+			npState, inNP := b.npFilterStates[message.From.ID]
+			b.npFilterStatesMu.Unlock()
+
+			if inNP {
+				b.handleInteractiveNPFilter(ctx, message, npState)
+				return
+			}
 		}
 	}
 
@@ -88,10 +108,22 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 		return
 	}
 
-	// Restrict DMs: only /login is allowed in private chats
-	if message.Chat.Type == models.ChatTypePrivate && cmd != "login" {
-		b.SendMessage(ctx, message.Chat.ID, "⚠️ This command can only be used in the group chat, not in private messages.", models.ParseModeHTML, nil)
-		return
+	// Command categorization
+	isCommonCmd := cmd == "start" || cmd == "help"
+	isPrivateCmd := cmd == "login" || cmd == "enable_np" || cmd == "disable_np" || cmd == "enablenp" || cmd == "disablenp"
+	isGroupCmd := cmd == "stats" || cmd == "random" || cmd == "search" || cmd == "nowplaying" ||
+		cmd == "genres" || cmd == "year" || cmd == "recent" || cmd == "recommend" ||
+		cmd == "ticket" || cmd == "tickets" || cmd == "done"
+
+	if message.Chat.Type == models.ChatTypePrivate {
+		if isGroupCmd {
+			b.SendMessage(ctx, message.Chat.ID, fmt.Sprintf("⚠️ The <code>/%s</code> command can only be used in the group chat, not in private messages.", cmd), models.ParseModeHTML, nil)
+			return
+		}
+		if !isCommonCmd && !isPrivateCmd {
+			b.SendMessage(ctx, message.Chat.ID, fmt.Sprintf("⚠️ Unknown command <code>/%s</code>. Use /help to see available commands.", cmd), models.ParseModeHTML, nil)
+			return
+		}
 	}
 
 	// Topic Routing Rules
@@ -124,6 +156,10 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 		b.handleRecommend(ctx, message.Chat.ID)
 	case "login":
 		b.handleLogin(ctx, message, args)
+	case "enable_np", "enablenp":
+		b.handleEnableNP(ctx, message, args)
+	case "disable_np", "disablenp":
+		b.handleDisableNP(ctx, message, args)
 	case "ticket":
 		b.handleTicket(ctx, message)
 	case "tickets":
@@ -187,7 +223,7 @@ func (b *Bot) isCommandAllowedInTopic(cmd string, threadID int) bool {
 	}
 
 	switch cmd {
-	case "help", "start", "stats", "search", "login":
+	case "help", "start", "stats", "search", "login", "enable_np", "disable_np", "enablenp", "disablenp":
 		return true // all channels
 	case "year", "genres", "nowplaying":
 		return threadID != cfg.TopicIssues
@@ -253,15 +289,11 @@ func (b *Bot) handleHelp(ctx context.Context, chatID int64) {
 		"• /tickets - List all open tickets\n" +
 		"• /done &lt;id&gt; - Mark a ticket as resolved\n\n" +
 		"🔒 <b>Private Commands (DM only)</b>:\n" +
-		"• /login &lt;user&gt; &lt;pass&gt; - Store credentials to share your favorites\n"
+		"• /login &lt;user&gt; &lt;pass&gt; - Store credentials to share your favorites\n" +
+		"• /disable_np - Hide your activity from /nowplaying\n" +
+		"• /enable_np - Show your activity in /nowplaying\n"
 
-	params := &bot.SendMessageParams{
-		ChatID:    chatID,
-		Text:      helpText,
-		ParseMode: models.ParseModeHTML,
-	}
-	b.injectThreadID(ctx, params)
-	_, _ = b.api.SendMessage(ctx, params)
+	b.SendMessage(ctx, chatID, helpText, models.ParseModeHTML, nil)
 }
 
 // handleStats retrieves server stats (size, artists, albums, songs) and sends them to the chat.
@@ -414,11 +446,32 @@ func (b *Bot) handleNowPlaying(ctx context.Context, chatID int64) {
 		return
 	}
 
+	// Filter out users who have opted out of /nowplaying
+	filters, err := b.db.GetNowPlayingFilteredUsers()
+	if err != nil {
+		slog.Error("Failed to fetch now playing filters", "error", err)
+		filters = make(map[string]bool)
+	}
+
+	var visibleEntries []map[string]any
+	for _, entry := range entries {
+		u := strings.ToLower(strings.TrimSpace(b.getMapString(entry, "username", "")))
+		if filters[u] {
+			continue
+		}
+		visibleEntries = append(visibleEntries, entry)
+	}
+
+	if len(visibleEntries) == 0 {
+		b.SendMessage(ctx, chatID, "🤫 Nobody is listening to music right now.", models.ParseModeHTML, nil)
+		return
+	}
+
 	// Fetch full library for type tag lookup
 	allAlbums, _ := navidrome.LibrarySync(b.navClient, b.cfg.CacheFile, b.cfg.ScanMetaFile, false)
 
 	msg := "🎧 <b>Now Playing:</b>\n\n"
-	for _, entry := range entries {
+	for _, entry := range visibleEntries {
 		username := b.getMapString(entry, "username", "Someone")
 		title := b.getMapString(entry, "title", "Unknown")
 		artist := b.getMapString(entry, "artist", "Unknown")
@@ -762,11 +815,209 @@ func (b *Bot) processLogin(ctx context.Context, chatID int64, fromUser *models.U
 	}
 }
 
+// handleDisableNP initiates the flow to exclude a user from appearing in /nowplaying.
+// Can only be used in private messages (DM).
+func (b *Bot) handleDisableNP(ctx context.Context, message *models.Message, args string) {
+	b.startNPFilterFlow(ctx, message, args, npActionDisable)
+}
+
+// handleEnableNP initiates the flow to re-include a user in /nowplaying.
+// Can only be used in private messages (DM).
+func (b *Bot) handleEnableNP(ctx context.Context, message *models.Message, args string) {
+	b.startNPFilterFlow(ctx, message, args, npActionEnable)
+}
+
+// startNPFilterFlow resolves the Navidrome username and verifies whether
+// the user is already filtered before asking for confirmation/password.
+func (b *Bot) startNPFilterFlow(ctx context.Context, message *models.Message, args string, action npFilterAction) {
+	chatID := message.Chat.ID
+	userID := message.From.ID
+
+	cmdName := "/disable_np"
+	if action == npActionEnable {
+		cmdName = "/enable_np"
+	}
+
+	if message.Chat.Type != models.ChatTypePrivate {
+		b.SendMessage(ctx, chatID, fmt.Sprintf("⚠️ The <code>%s</code> command can only be used in private messages (DM) with me for security.", cmdName), models.ParseModeHTML, nil)
+		return
+	}
+
+	parts := strings.Fields(args)
+	var username, password string
+
+	if len(parts) >= 1 {
+		username = parts[0]
+	}
+	if len(parts) >= 2 {
+		password = parts[1]
+	}
+
+	// If username was not passed in args, prompt for username interactively (like /login does)
+	if username == "" {
+		b.npFilterStatesMu.Lock()
+		b.npFilterStates[userID] = npFilterState{action: action, state: 1}
+		b.npFilterStatesMu.Unlock()
+
+		b.SendMessage(ctx, chatID, "👤 Please enter your Navidrome <b>username</b>:", models.ParseModeHTML, nil)
+		return
+	}
+
+	b.checkAndPromptNPPassword(ctx, chatID, userID, action, username, password, message.ID)
+}
+
+// checkAndPromptNPPassword checks whether the user is already filtered.
+// If already in the target state, it informs the user. Otherwise, it prompts for password.
+func (b *Bot) checkAndPromptNPPassword(ctx context.Context, chatID int64, userID int64, action npFilterAction, username, password string, msgIDToDelete int) {
+	// Always clear interactive state unless transitioning to password prompt (state 2)
+	defer func() {
+		b.npFilterStatesMu.Lock()
+		if s, ok := b.npFilterStates[userID]; ok && s.state != 2 {
+			delete(b.npFilterStates, userID)
+		}
+		b.npFilterStatesMu.Unlock()
+	}()
+
+	filtered, err := b.db.IsNowPlayingFiltered(username)
+	if err != nil {
+		slog.Error("Failed to check now playing filter status", "username", username, "error", err)
+		b.SendMessage(ctx, chatID, "❌ Database error: failed to check filter status.", models.ParseModeHTML, nil)
+		return
+	}
+
+	if action == npActionDisable && filtered {
+		b.SendMessage(ctx, chatID, fmt.Sprintf("ℹ️ <b>%s</b> is already filtered from now playing.", username), models.ParseModeHTML, nil)
+		return
+	}
+	if action == npActionEnable && !filtered {
+		b.SendMessage(ctx, chatID, fmt.Sprintf("ℹ️ <b>%s</b> is not currently filtered (already visible in now playing).", username), models.ParseModeHTML, nil)
+		return
+	}
+
+	// If password was already provided inline (e.g. /disable_np username password)
+	if password != "" {
+		if msgIDToDelete != 0 {
+			b.deleteMessage(ctx, chatID, msgIDToDelete)
+		}
+		b.processNPFilter(ctx, chatID, action, username, password)
+		return
+	}
+
+	// Prompt for password interactively
+	b.npFilterStatesMu.Lock()
+	b.npFilterStates[userID] = npFilterState{action: action, state: 2, username: username}
+	b.npFilterStatesMu.Unlock()
+
+	actionDesc := "disable"
+	if action == npActionEnable {
+		actionDesc = "re-enable"
+	}
+	prompt := fmt.Sprintf("🔑 Please enter your Navidrome <b>password</b> for <b>%s</b> to %s now playing:", html.EscapeString(username), actionDesc)
+	b.SendMessage(ctx, chatID, prompt, models.ParseModeHTML, nil)
+}
+
+// handleInteractiveNPFilter handles incoming messages from users in the nowplaying filter state machine.
+func (b *Bot) handleInteractiveNPFilter(ctx context.Context, message *models.Message, state npFilterState) {
+	userID := message.From.ID
+	chatID := message.Chat.ID
+
+	// Delete message for security
+	b.deleteMessage(ctx, chatID, message.ID)
+
+	switch state.state {
+	case 1:
+		username := strings.TrimSpace(message.Text)
+		if username == "" {
+			b.SendMessage(ctx, chatID, "❌ Username cannot be blank. Please try again:", models.ParseModeHTML, nil)
+			return
+		}
+		b.checkAndPromptNPPassword(ctx, chatID, userID, state.action, username, "", 0)
+
+	case 2:
+		password := strings.TrimSpace(message.Text)
+		b.npFilterStatesMu.Lock()
+		delete(b.npFilterStates, userID)
+		b.npFilterStatesMu.Unlock()
+
+		if password == "" {
+			b.SendMessage(ctx, chatID, "❌ Password cannot be blank. Please start again.", models.ParseModeHTML, nil)
+			return
+		}
+
+		b.processNPFilter(ctx, chatID, state.action, state.username, password)
+	}
+}
+
+// processNPFilter checks credentials with Navidrome and persists the filter preference in SQLite.
+func (b *Bot) processNPFilter(ctx context.Context, chatID int64, action npFilterAction, username, password string) {
+	params := &bot.SendMessageParams{
+		ChatID: chatID,
+		Text:   "⏳ Verifying credentials with Navidrome...",
+	}
+	b.injectThreadID(ctx, params)
+	var editMsgID int
+	if b.api != nil {
+		botMsg, err := b.api.SendMessage(ctx, params)
+		if err == nil {
+			editMsgID = botMsg.ID
+		}
+	}
+
+	client := navidrome.NewClient(b.cfg.NavidromeURL, username, password, b.cfg.APIVersion, b.cfg.MusicFolderName)
+	if err := client.Ping(); err != nil {
+		errText := "❌ Invalid credentials. Please check your Navidrome username and password."
+		if strings.Contains(strings.ToLower(err.Error()), "network") || strings.Contains(strings.ToLower(err.Error()), "connection") {
+			errText = "❌ Connection error. The bot could not reach the Navidrome server."
+		}
+		if editMsgID != 0 {
+			_, _ = b.api.EditMessageText(ctx, &bot.EditMessageTextParams{
+				ChatID:    chatID,
+				MessageID: editMsgID,
+				Text:      errText,
+			})
+		} else {
+			b.SendMessage(ctx, chatID, errText, models.ParseModeHTML, nil)
+		}
+		return
+	}
+
+	var resultText string
+	if action == npActionDisable {
+		if err := b.db.SetNowPlayingFilter(username, &chatID); err != nil {
+			slog.Error("Failed to set nowplaying filter", "username", username, "error", err)
+			resultText = "❌ Database error: failed to update now playing preference."
+		} else {
+			resultText = fmt.Sprintf("✅ <b>%s</b> is now filtered out from <code>/nowplaying</code>.", username)
+		}
+	} else {
+		if err := b.db.RemoveNowPlayingFilter(username); err != nil {
+			slog.Error("Failed to remove nowplaying filter", "username", username, "error", err)
+			resultText = "❌ Database error: failed to update now playing preference."
+		} else {
+			resultText = fmt.Sprintf("✅ <b>%s</b> is now visible in <code>/nowplaying</code>.", username)
+		}
+	}
+
+	if editMsgID != 0 && b.api != nil {
+		_, _ = b.api.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    chatID,
+			MessageID: editMsgID,
+			Text:      resultText,
+			ParseMode: models.ParseModeHTML,
+		})
+	} else {
+		b.SendMessage(ctx, chatID, resultText, models.ParseModeHTML, nil)
+	}
+}
+
 // Helpers
 
 // deleteMessage is a utility to immediately delete a user's message, primarily
 // used to hide sensitive data like plaintext passwords or clutter.
 func (b *Bot) deleteMessage(ctx context.Context, chatID int64, messageID int) {
+	if b.api == nil {
+		return
+	}
 	params := &bot.DeleteMessageParams{
 		ChatID:    chatID,
 		MessageID: messageID,

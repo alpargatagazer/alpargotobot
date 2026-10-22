@@ -115,3 +115,29 @@ func TestLibrarySync(t *testing.T) {
 	require.Len(t, cached, 1)
 	assert.Equal(t, "Album One", cached[0].Name)
 }
+
+func TestUserExists(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/rest/getUser", r.URL.Path)
+		username := r.URL.Query().Get("username")
+		w.Header().Set("Content-Type", "application/json")
+
+		if username == "alice" {
+			_, _ = w.Write([]byte(`{"subsonic-response":{"status":"ok","user":{"username":"alice"}}}`))
+			return
+		}
+		// Code 50: User not found
+		_, _ = w.Write([]byte(`{"subsonic-response":{"status":"failed","error":{"code":50,"message":"User not found"}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "admin", "admin-pass", "1.16.1", "Music Library")
+
+	exists, err := client.UserExists("alice")
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	exists, err = client.UserExists("sadsad")
+	require.NoError(t, err)
+	require.False(t, exists)
+}

@@ -31,6 +31,19 @@ type loginState struct {
 	username string
 }
 
+type npFilterAction int
+
+const (
+	npActionDisable npFilterAction = 1
+	npActionEnable  npFilterAction = 2
+)
+
+type npFilterState struct {
+	action   npFilterAction
+	state    int // 1: waiting for username, 2: waiting for password
+	username string
+}
+
 // ticketStep represents the current step in the interactive ticket creation flow.
 type ticketStep int
 
@@ -62,6 +75,11 @@ type Bot struct {
 
 	ticketStates   map[int64]ticketState
 	ticketStatesMu sync.Mutex
+
+	npFilterStates   map[int64]npFilterState
+	npFilterStatesMu sync.Mutex
+
+	onSendMessage func(ctx context.Context, chatID any, text string, parseMode models.ParseMode)
 }
 
 // NewBot initializes and returns a new Telegram Bot.
@@ -74,6 +92,7 @@ func NewBot(cfg *config.Config, db *database.DB, navClient *navidrome.Client, ac
 		authCache:      make(map[int64]authCacheEntry),
 		loginStates:    make(map[int64]loginState),
 		ticketStates:   make(map[int64]ticketState),
+		npFilterStates: make(map[int64]npFilterState),
 	}
 
 	opts := []bot.Option{
@@ -101,6 +120,10 @@ func (b *Bot) Start(ctx context.Context) {
 func (b *Bot) SendMessage(ctx context.Context, chatID any, text string, parseMode models.ParseMode, replyMarkup models.ReplyMarkup) {
 	chunks := SplitMessage(text, 4096)
 	for i, chunk := range chunks {
+		if b.onSendMessage != nil {
+			b.onSendMessage(ctx, chatID, chunk, parseMode)
+		}
+
 		params := &bot.SendMessageParams{
 			ChatID:    chatID,
 			Text:      chunk,
@@ -116,8 +139,10 @@ func (b *Bot) SendMessage(ctx context.Context, chatID any, text string, parseMod
 		if i == len(chunks)-1 && replyMarkup != nil {
 			params.ReplyMarkup = replyMarkup
 		}
-		if _, err := b.api.SendMessage(ctx, params); err != nil {
-			slog.Error("Failed to send message", "chatID", chatID, "error", err)
+		if b.api != nil {
+			if _, err := b.api.SendMessage(ctx, params); err != nil {
+				slog.Error("Failed to send message", "chatID", chatID, "error", err)
+			}
 		}
 	}
 }
